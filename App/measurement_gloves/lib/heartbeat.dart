@@ -70,7 +70,7 @@ class _HomeState extends State<Home> {
                       )
                   ),
                 ],),
-              Positioned( //left thumb circle
+              toggleVal ? Positioned( //left thumb circle
                 top: MediaQuery.of(context).size.height*0.35,
                 left: MediaQuery.of(context).size.width*0.03,
                 //height: 50.0,
@@ -81,8 +81,8 @@ class _HomeState extends State<Home> {
                   width: MediaQuery.of(context).size.width*0.085,
                   fit: BoxFit.fitWidth,
                 ),
-              ),
-              Positioned( //left top circle
+              ): Container(height:0, width: 0),
+              toggleVal ? Positioned( //left top circle
                 top: MediaQuery.of(context).size.height*0.33,
                 left: MediaQuery.of(context).size.width*0.22,
                 //height: 50.0,
@@ -93,8 +93,8 @@ class _HomeState extends State<Home> {
                   width: MediaQuery.of(context).size.width*0.085,
                   fit: BoxFit.fitWidth,
                 ),
-              ),
-              Positioned(//left bottom circle
+              ):Container(height:0, width: 0),
+              toggleVal ? Positioned(//left bottom circle
                 top: MediaQuery.of(context).size.height*0.40,
                 left: MediaQuery.of(context).size.width*0.32,
                 //height: 50.0,
@@ -105,8 +105,8 @@ class _HomeState extends State<Home> {
                   width: MediaQuery.of(context).size.width*0.085,
                   fit: BoxFit.fitWidth,
                 ),
-              ),
-              Positioned( //right thumb circle
+              ):Container(height:0, width: 0),
+              toggleVal ? Positioned( //right thumb circle
                 top: MediaQuery.of(context).size.height*0.35,
                 left: MediaQuery.of(context).size.width - 55.0,
                 //height: 50.0,
@@ -117,8 +117,8 @@ class _HomeState extends State<Home> {
                   width: MediaQuery.of(context).size.width*0.085,
                   fit: BoxFit.fitWidth,
                 ),
-              ),
-              Positioned( //right top circle
+              ):Container(height:0, width: 0),
+              toggleVal ? Positioned( //right top circle
                 top: MediaQuery.of(context).size.height*0.33,
                 left: MediaQuery.of(context).size.width - 127.0,
                 //height: 50.0,
@@ -129,8 +129,8 @@ class _HomeState extends State<Home> {
                   width: MediaQuery.of(context).size.width*0.085,
                   fit: BoxFit.fitWidth,
                 ),
-              ),
-              Positioned( //right bottom circle
+              ):Container(height:0, width: 0),
+              toggleVal ? Positioned( //right bottom circle
                 top: MediaQuery.of(context).size.height*0.40,
                 left: MediaQuery.of(context).size.width - 167.0,
                 //height: 50.0,
@@ -141,7 +141,7 @@ class _HomeState extends State<Home> {
                   width: MediaQuery.of(context).size.width*0.085,
                   fit: BoxFit.fitWidth,
                 ),
-              ),
+              ):Container(height:0, width: 0),
             ]
           ),
           Row( //heartbeat mode bar
@@ -157,7 +157,7 @@ class _HomeState extends State<Home> {
               Expanded(
                 flex: 6,
                 child: Text(
-                  'Heartbeat Mode',
+                  'Monitor Mode',
                   textAlign: TextAlign.center,
                 ),
               ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import './GloveApp.dart';
+import './heartbeat.dart';
 
 void main() => runApp(MyApp());
 
@@ -11,7 +12,8 @@ class MyApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => FirstScreen(),
-        '/GloveApp': (context) => GloveApp(),
+        //'/GloveApp': (context) => GloveApp(),
+        '/heartbeat': (context) => Heartbeat(),
       },
     );
   }
@@ -32,21 +34,24 @@ class FirstScreen extends StatelessWidget {
               title: Text('Gloves 1'),
               trailing: Icon(Icons.keyboard_arrow_right),
               onTap: () {
-                Navigator.of(context).pushNamed('/GloveApp');
+                //Navigator.of(context).pushNamed('/GloveApp');
+                Navigator.of(context).pushNamed('/heartbeat');
               },
             ),
             ListTile(
               title: Text('Gloves 2'),
               trailing: Icon(Icons.keyboard_arrow_right),
               onTap: () {
-                Navigator.of(context).pushNamed('/GloveApp');
+                //Navigator.of(context).pushNamed('/GloveApp');
+                Navigator.of(context).pushNamed('/heartbeat');
               },
             ),
             ListTile(
               title: Text('Gloves 3'),
               trailing: Icon(Icons.keyboard_arrow_right),
               onTap: () {
-                Navigator.of(context).pushNamed('/GloveApp');
+                //Navigator.of(context).pushNamed('/GloveApp');
+                Navigator.of(context).pushNamed('/heartbeat');
               },
             ),
           ],

@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
-
+/*
 void main() => runApp(MaterialApp(
     home: Home()
 ));
-
-class Home extends StatefulWidget { //reloads changes when saved
+*/
+class Heartbeat extends StatefulWidget { //reloads changes when saved
+  Heartbeat({Key key}) : super(key: key);
   @override
-  _HomeState createState() => _HomeState();
+  _Heartbeat createState() => _Heartbeat();
 }
 
-class _HomeState extends State<Home> {
+class _Heartbeat extends State<Heartbeat> {
+  //data
+  double hand_height = 0;
+  double hand_width= 0;
   //heartbeat mode
   bool toggleVal = false;
 
@@ -37,191 +41,146 @@ class _HomeState extends State<Home> {
             )
         ),
         centerTitle: true,
-        backgroundColor: Colors.grey[100], //ctrl+Q to view color intensity
+        backgroundColor: Colors.blueAccent, //ctrl+Q to view color intensity
         leading: GestureDetector( //back button
-          onTap: () {},
+          onTap: () {
+            Navigator.pop(context);
+          },
           child: Icon(
             Icons.arrow_back,
           ),
         ),
+        actions: <Widget>[
+          FlatButton(
+            textColor: Colors.white,
+            onPressed: () {},
+            child: Text('Set RTC'),
+          )
+        ],
       ),
       body: Column(
         children: <Widget>[
           Stack(
-            children:<Widget> [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children:<Widget>[
-                  Container( //left hand
-                      child: Image.asset(
-                        'assets/transparent-hand-left.png',
-                        height: MediaQuery.of(context).size.height*0.7,
-                        width: MediaQuery.of(context).size.width*0.5,
-                        fit: BoxFit.fitWidth,
-                      )
-                  ),
-                  Container( //right hand
-                      child: Image.asset(
-                        'assets/transparent-hand-right.png',
-                        height: MediaQuery.of(context).size.height*0.7,
-                        width: MediaQuery.of(context).size.width*0.5,
-                        fit: BoxFit.fitWidth,
-                      )
-                  ),
-                ],),
-              toggleVal ? Positioned( //left thumb circle
-                top: MediaQuery.of(context).size.height*0.35,
-                left: MediaQuery.of(context).size.width*0.03,
-                //height: 50.0,
-                //width: 50.0,
-                child: Image.asset(
-                  'assets/transparent-circle.png',
-                  height: MediaQuery.of(context).size.height*0.085,
-                  width: MediaQuery.of(context).size.width*0.085,
-                  fit: BoxFit.fitWidth,
-                ),
-              ): Container(height:0, width: 0),
-              toggleVal ? Positioned( //left top circle
-                top: MediaQuery.of(context).size.height*0.33,
-                left: MediaQuery.of(context).size.width*0.22,
-                //height: 50.0,
-                //width: 50.0,
-                child: Image.asset(
-                  'assets/transparent-circle.png',
-                  height: MediaQuery.of(context).size.height*0.085,
-                  width: MediaQuery.of(context).size.width*0.085,
-                  fit: BoxFit.fitWidth,
-                ),
-              ):Container(height:0, width: 0),
-              toggleVal ? Positioned(//left bottom circle
-                top: MediaQuery.of(context).size.height*0.40,
-                left: MediaQuery.of(context).size.width*0.32,
-                //height: 50.0,
-                //width: 50.0,
-                child: Image.asset(
-                  'assets/transparent-circle.png',
-                  height: MediaQuery.of(context).size.height*0.085,
-                  width: MediaQuery.of(context).size.width*0.085,
-                  fit: BoxFit.fitWidth,
-                ),
-              ):Container(height:0, width: 0),
-              toggleVal ? Positioned( //right thumb circle
-                top: MediaQuery.of(context).size.height*0.35,
-                left: MediaQuery.of(context).size.width - 55.0,
-                //height: 50.0,
-                //width: 50.0,
-                child: Image.asset(
-                  'assets/transparent-circle.png',
-                  height: MediaQuery.of(context).size.height*0.085,
-                  width: MediaQuery.of(context).size.width*0.085,
-                  fit: BoxFit.fitWidth,
-                ),
-              ):Container(height:0, width: 0),
-              toggleVal ? Positioned( //right top circle
-                top: MediaQuery.of(context).size.height*0.33,
-                left: MediaQuery.of(context).size.width - 127.0,
-                //height: 50.0,
-                //width: 50.0,
-                child: Image.asset(
-                  'assets/transparent-circle.png',
-                  height: MediaQuery.of(context).size.height*0.085,
-                  width: MediaQuery.of(context).size.width*0.085,
-                  fit: BoxFit.fitWidth,
-                ),
-              ):Container(height:0, width: 0),
-              toggleVal ? Positioned( //right bottom circle
-                top: MediaQuery.of(context).size.height*0.40,
-                left: MediaQuery.of(context).size.width - 167.0,
-                //height: 50.0,
-                //width: 50.0,
-                child: Image.asset(
-                  'assets/transparent-circle.png',
-                  height: MediaQuery.of(context).size.height*0.085,
-                  width: MediaQuery.of(context).size.width*0.085,
-                  fit: BoxFit.fitWidth,
-                ),
-              ):Container(height:0, width: 0),
-            ]
-          ),
-          Row( //heartbeat mode bar
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children:<Widget>[
-              Expanded(
-                flex: 2,
-                child: Icon(
-                  Icons.timeline_sharp,
-                ),
-              ),
-              Expanded(
-                flex: 6,
-                child: Text(
-                  'Monitor Mode',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              Expanded(
-                flex: 2,
-                child: Switch(
-                  value: toggleVal,
-                  onChanged: (newVal) {
-                    toggleValSwitch(newVal);
-                  },
-                ),
-              ),
+              children:<Widget> [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children:<Widget>[
+                    Container( //left hand
+                        child: Image.asset(
+                          'assets/transparent-hand-left.png',
+                          height: MediaQuery.of(context).size.height*0.6,
+                          width: MediaQuery.of(context).size.width*0.5,
+                          fit: BoxFit.fitWidth,
+                        )
+                    ),
+                    Container( //right hand
+                        child: Image.asset(
+                          'assets/transparent-hand-right.png',
+                          height: MediaQuery.of(context).size.height*0.6,
+                          width: MediaQuery.of(context).size.width*0.5,
+                          fit: BoxFit.fitWidth,
+                        )
+                    ),
+                  ],),
+                toggleVal ? Positioned( //left thumb circle
+                  top: MediaQuery.of(context).size.height*0.6*0.5,
+                  left: MediaQuery.of(context).size.width*0.5*0.046,
 
-            ],),
-          Row(//status bar
-            //mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children:<Widget>[
-              Expanded(
-                flex: 2,
-                child: Icon(
-                  Icons.schedule,
-                ),
-              ),
-              Expanded(
-                flex: 6,
-                child: Text(
-                  'Status',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              Expanded(
-                flex: 2,
-                child: Text(
-                  '$status_type',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],),
-          Row( //battery bar
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children:<Widget>[
-              Expanded(
-                flex: 2,
-                child: Icon(
-                  Icons.battery_charging_full,
-                ),
-              ),
-              Expanded(
-                flex: 6,
-                child: Text(
-                  'Battery',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              Expanded(
-                flex: 2,
-                child: Text(
-                  '$battery_per %',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],),
+                  child: Image.asset(
+                    'assets/transparent-circle.png',
+                    height: MediaQuery.of(context).size.height*0.6*0.1417,
+                    width: MediaQuery.of(context).size.width*0.5*0.17,
+                    fit: BoxFit.fitWidth,
+                  ),
+                ): Container(height:0, width: 0),
+                toggleVal ? Positioned( //left top circle
+                  top: MediaQuery.of(context).size.height*0.6*0.45,
+                  left: MediaQuery.of(context).size.width*0.5*0.44,
+
+                  child: Image.asset(
+                    'assets/transparent-circle.png',
+                    height: MediaQuery.of(context).size.height*0.6*0.1417,
+                    width: MediaQuery.of(context).size.width*0.5*0.17,
+                    fit: BoxFit.fitWidth,
+                  ),
+                ):Container(height:0, width: 0),
+                toggleVal ? Positioned(//left bottom circle
+                  top: MediaQuery.of(context).size.height*0.6*0.58333,
+                  left: MediaQuery.of(context).size.width*0.5*0.64,
+
+                  child: Image.asset(
+                    'assets/transparent-circle.png',
+                    height: MediaQuery.of(context).size.height*0.6*0.1417,
+                    width: MediaQuery.of(context).size.width*0.5*0.17,
+                    fit: BoxFit.fitWidth,
+                  ),
+                ):Container(height:0, width: 0),
+                toggleVal ? Positioned( //right thumb circle
+                  top: MediaQuery.of(context).size.height*0.6*0.5,
+                  left: MediaQuery.of(context).size.width*0.5*1.78,
+
+                  child: Image.asset(
+                    'assets/transparent-circle.png',
+                    height: MediaQuery.of(context).size.height*0.6*0.1417,
+                    width: MediaQuery.of(context).size.width*0.5*0.17,
+                    fit: BoxFit.fitWidth,
+                  ),
+                ):Container(height:0, width: 0),
+                toggleVal ? Positioned( //right top circle
+                  top: MediaQuery.of(context).size.height*0.6*0.45,
+                  left: MediaQuery.of(context).size.width*0.5*1.38,
+
+                  child: Image.asset(
+                    'assets/transparent-circle.png',
+                    height: MediaQuery.of(context).size.height*0.6*0.1417,
+                    width: MediaQuery.of(context).size.width*0.5*0.17,
+                    fit: BoxFit.fitWidth,
+                  ),
+                ):Container(height:0, width: 0),
+                toggleVal ? Positioned( //right bottom circle
+                  top: MediaQuery.of(context).size.height*0.6*0.58333,
+                  left: MediaQuery.of(context).size.width*0.5*1.2,
+
+                  child: Image.asset(
+                    'assets/transparent-circle.png',
+                    height: MediaQuery.of(context).size.height*0.6*0.1417,
+                    width: MediaQuery.of(context).size.width*0.5*0.17,
+                    fit: BoxFit.fitWidth,
+                  ),
+                ):Container(height:0, width: 0),
+              ]
+          ),
+          Divider( thickness: 2),
+          Expanded(
+            child: ListView(
+              children: ListTile.divideTiles(
+                context: context,
+                tiles:[
+                  SwitchListTile(
+                    secondary: Icon(Icons.bluetooth),
+                    title: const Text('Acitive Monitoring Mode'),
+                    value: toggleVal,
+                    onChanged:(newVal) {
+                      setState(() {
+                        toggleValSwitch(newVal);
+                      });
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.info_outline),
+                    title: Text('Status'),
+                    trailing: Icon(Icons.keyboard_arrow_right),
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.battery_charging_full),
+                    title: Text('Battery'),
+                    trailing: Icon(Icons.keyboard_arrow_right),
+                  ),
+                ],
+              ).toList(),
+            ),
+          ),
         ],),
     );
   }

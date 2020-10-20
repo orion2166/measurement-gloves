@@ -16,7 +16,6 @@ double leftBottomH = 0; double leftBottomW = 0;
 double rightThumbH = 0; double rightThumbW = 0;
 double rightTopH = 0; double rightTopW = 0;
 double rightBottomH = 0; double rightBottomW = 0;
-var pos_list = List<Coordinate>(6); //list of position of circles
 
 class Coordinate {
   final double h; //height

@@ -1,18 +1,29 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-/*
-void main() => runApp(MaterialApp(
-    home: Home()
-));
-*/
+
+import 'circle_painter.dart';
+
 class Heartbeat extends StatefulWidget { //reloads changes when saved
   Heartbeat({Key key}) : super(key: key);
   @override
   _Heartbeat createState() => _Heartbeat();
 }
+/*Global Variables*/
+bool toggleVal = false;
+double leftThumbH = 0; double leftThumbW = 0;
+double leftTopH = 0; double leftTopW = 0;
+double leftBottomH = 0; double leftBottomW = 0;
+double rightThumbH = 0; double rightThumbW = 0;
+double rightTopH = 0; double rightTopW = 0;
+double rightBottomH = 0; double rightBottomW = 0;
+var pos_list = List<Coordinate>(6); //list of position of circles
 
+class Coordinate {
+  final double h; //height
+  final double w; //width
+  const Coordinate(this.h, this.w);
+}
 class _Heartbeat extends State<Heartbeat> {
-  //heartbeat mode
-  bool toggleVal = false;
 
   toggleValSwitch(bool newVal){
     setState(() {
@@ -26,6 +37,22 @@ class _Heartbeat extends State<Heartbeat> {
   //battery
   int battery_per = 0; //initially zero
   /*update battery percentage*/
+  // state variable
+  double forceVal = 0;
+  // change circle size when button pressed
+  _changeSize() {
+    setState(() {
+      if (forceVal == 0) {
+        forceVal = 10;
+      } else if (forceVal == 10) {
+        forceVal = 20;
+      } else if (forceVal == 20) {
+        forceVal = 30;
+      } else {
+        forceVal = 0;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context){
@@ -52,7 +79,14 @@ class _Heartbeat extends State<Heartbeat> {
             textColor: Colors.white,
             onPressed: () {},
             child: Text('Set RTC'),
-          )
+          ),
+          Container(
+            child: RaisedButton(
+              child: Text('Test'),
+              color: Colors.blueAccent,
+              onPressed: _changeSize,
+            ),
+          ),
         ],
       ),
       body: Column(
@@ -81,77 +115,125 @@ class _Heartbeat extends State<Heartbeat> {
                     ),
                   ],),
                 toggleVal ? Positioned( //left thumb circle
-                  top: MediaQuery.of(context).size.height*0.35,
-                  left: MediaQuery.of(context).size.width*0.03,
-                  //height: 50.0,
-                  //width: 50.0,
+                  top: MediaQuery.of(context).size.height*0.6*0.5,
+                  left: MediaQuery.of(context).size.width*0.5*0.046,
+
                   child: Image.asset(
                     'assets/transparent-circle.png',
-                    height: MediaQuery.of(context).size.height*0.085,
-                    width: MediaQuery.of(context).size.width*0.085,
+                    height: MediaQuery.of(context).size.height*0.6*0.1417,
+                    width: MediaQuery.of(context).size.width*0.5*0.17,
                     fit: BoxFit.fitWidth,
                   ),
                 ): Container(height:0, width: 0),
                 toggleVal ? Positioned( //left top circle
-                  top: MediaQuery.of(context).size.height*0.33,
-                  left: MediaQuery.of(context).size.width*0.22,
-                  //height: 50.0,
-                  //width: 50.0,
+                  top: MediaQuery.of(context).size.height*0.6*0.45,
+                  left: MediaQuery.of(context).size.width*0.5*0.44,
+
                   child: Image.asset(
                     'assets/transparent-circle.png',
-                    height: MediaQuery.of(context).size.height*0.085,
-                    width: MediaQuery.of(context).size.width*0.085,
+                    height: MediaQuery.of(context).size.height*0.6*0.1417,
+                    width: MediaQuery.of(context).size.width*0.5*0.17,
                     fit: BoxFit.fitWidth,
                   ),
                 ):Container(height:0, width: 0),
                 toggleVal ? Positioned(//left bottom circle
-                  top: MediaQuery.of(context).size.height*0.40,
-                  left: MediaQuery.of(context).size.width*0.32,
-                  //height: 50.0,
-                  //width: 50.0,
+                  top: MediaQuery.of(context).size.height*0.6*0.58333,
+                  left: MediaQuery.of(context).size.width*0.5*0.64,
+
                   child: Image.asset(
                     'assets/transparent-circle.png',
-                    height: MediaQuery.of(context).size.height*0.085,
-                    width: MediaQuery.of(context).size.width*0.085,
+                    height: MediaQuery.of(context).size.height*0.6*0.1417,
+                    width: MediaQuery.of(context).size.width*0.5*0.17,
                     fit: BoxFit.fitWidth,
                   ),
                 ):Container(height:0, width: 0),
                 toggleVal ? Positioned( //right thumb circle
-                  top: MediaQuery.of(context).size.height*0.35,
-                  left: MediaQuery.of(context).size.width - 55.0,
-                  //height: 50.0,
-                  //width: 50.0,
+                  top: MediaQuery.of(context).size.height*0.6*0.5,
+                  left: MediaQuery.of(context).size.width*0.5*1.78,
+
                   child: Image.asset(
                     'assets/transparent-circle.png',
-                    height: MediaQuery.of(context).size.height*0.085,
-                    width: MediaQuery.of(context).size.width*0.085,
+                    height: MediaQuery.of(context).size.height*0.6*0.1417,
+                    width: MediaQuery.of(context).size.width*0.5*0.17,
                     fit: BoxFit.fitWidth,
                   ),
                 ):Container(height:0, width: 0),
                 toggleVal ? Positioned( //right top circle
-                  top: MediaQuery.of(context).size.height*0.33,
-                  left: MediaQuery.of(context).size.width - 127.0,
-                  //height: 50.0,
-                  //width: 50.0,
+                  top: MediaQuery.of(context).size.height*0.6*0.45,
+                  left: MediaQuery.of(context).size.width*0.5*1.38,
+
                   child: Image.asset(
                     'assets/transparent-circle.png',
-                    height: MediaQuery.of(context).size.height*0.085,
-                    width: MediaQuery.of(context).size.width*0.085,
+                    height: MediaQuery.of(context).size.height*0.6*0.1417,
+                    width: MediaQuery.of(context).size.width*0.5*0.17,
                     fit: BoxFit.fitWidth,
                   ),
                 ):Container(height:0, width: 0),
                 toggleVal ? Positioned( //right bottom circle
-                  top: MediaQuery.of(context).size.height*0.40,
-                  left: MediaQuery.of(context).size.width - 167.0,
-                  //height: 50.0,
-                  //width: 50.0,
+                  top: MediaQuery.of(context).size.height*0.6*0.58333,
+                  left: MediaQuery.of(context).size.width*0.5*1.2,
+
                   child: Image.asset(
                     'assets/transparent-circle.png',
-                    height: MediaQuery.of(context).size.height*0.085,
-                    width: MediaQuery.of(context).size.width*0.085,
+                    height: MediaQuery.of(context).size.height*0.6*0.1417,
+                    width: MediaQuery.of(context).size.width*0.5*0.17,
                     fit: BoxFit.fitWidth,
                   ),
                 ):Container(height:0, width: 0),
+                Container(
+                  width: 400,
+                  height: 400,
+                  child: Circle(
+                    center: {"x": leftThumbW, "y": leftThumbH},
+                    radius: forceVal,
+                    mode: toggleVal,
+                  ),
+                ),
+                Container(
+                  width: 400,
+                  height: 400,
+                  child: Circle(
+                    center: {"x": leftTopW, "y": leftTopH},
+                    radius: forceVal,
+                    mode: toggleVal,
+                  ),
+                ),
+                Container(
+                  width: 400,
+                  height: 400,
+                  child: Circle(
+                    center: {"x": leftBottomW, "y": leftBottomH},
+                    radius: forceVal,
+                    mode: toggleVal,
+                  ),
+                ),
+                Container(
+                  width: 400,
+                  height: 400,
+                  child: Circle(
+                    center: {"x": rightThumbW, "y": rightThumbH},
+                    radius: forceVal,
+                    mode: toggleVal,
+                  ),
+                ),
+                Container(
+                  width: 400,
+                  height: 400,
+                  child: Circle(
+                    center: {"x": rightTopW, "y": rightTopH},
+                    radius: forceVal,
+                    mode: toggleVal,
+                  ),
+                ),
+                Container(
+                  width: 400,
+                  height: 400,
+                  child: Circle(
+                    center: {"x": rightBottomW, "y": rightBottomH},
+                    radius: forceVal,
+                    mode: toggleVal,
+                  ),
+                ),
               ]
           ),
           Divider( thickness: 2),
@@ -162,11 +244,25 @@ class _Heartbeat extends State<Heartbeat> {
                 tiles:[
                   SwitchListTile(
                     secondary: Icon(Icons.bluetooth),
-                    title: const Text('Acitive Monitoring Mode'),
+                    title: const Text('Active Monitoring Mode'),
                     value: toggleVal,
                     onChanged:(newVal) {
                       setState(() {
                         toggleValSwitch(newVal);
+                        /*Get height and width*/
+                        leftThumbH = MediaQuery.of(context).size.height*0.34;
+                        leftThumbW = MediaQuery.of(context).size.width*0.063;
+                        leftTopH = MediaQuery.of(context).size.height*0.31;
+                        leftTopW = MediaQuery.of(context).size.width*0.26;
+                        leftBottomH = MediaQuery.of(context).size.height*0.395;
+                        leftBottomW = MediaQuery.of(context).size.width*0.365;
+                        rightThumbH = MediaQuery.of(context).size.height*0.34;
+                        rightThumbW = MediaQuery.of(context).size.width*(1-0.063);
+                        rightTopH = MediaQuery.of(context).size.height*0.31;
+                        rightTopW = MediaQuery.of(context).size.width*(1-0.265);
+                        rightBottomH = MediaQuery.of(context).size.height*0.395;
+                        rightBottomW = MediaQuery.of(context).size.width*(1-0.36);
+
                       });
                     },
                   ),
@@ -188,3 +284,76 @@ class _Heartbeat extends State<Heartbeat> {
     );
   }
 }
+/*
+class Circle extends StatefulWidget {
+  final Map<String, double> center;
+  final double radius;
+  Circle({this.center, this.radius});
+  @override
+  _CircleState createState() => _CircleState();
+}
+
+class _CircleState extends State<Circle> with SingleTickerProviderStateMixin {
+  AnimationController _controller;
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this);
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _controller.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: Size(MediaQuery.of(context).size.width,
+          MediaQuery.of(context).size.height),
+      painter: DrawCircle(center: widget.center, radius: widget.radius),
+    );
+  }
+}
+//Drawing Pressure Circles
+double rad = 17;
+class DrawCircle extends CustomPainter {
+  Map<String, double> center;
+  double radius;
+  DrawCircle({this.center, this.radius});
+  @override
+  void paint(Canvas canvas, Size size) {
+    var paint1 = Paint() //left thumb
+      ..color = Colors.redAccent
+      ..style = PaintingStyle.fill;
+    var paint2 = Paint() //left top
+      ..color = Colors.redAccent[100]
+      ..style = PaintingStyle.fill;
+    var paint3 = Paint() //left bottom
+      ..color = Colors.redAccent
+      ..style = PaintingStyle.fill;
+    var paint4 = Paint() //right thumb
+      ..color = Colors.redAccent
+      ..style = PaintingStyle.fill;
+    var paint5 = Paint() //right top
+      ..color = Colors.redAccent
+      ..style = PaintingStyle.fill;
+    var paint6 = Paint() //right bottom
+      ..color = Colors.redAccent
+      ..style = PaintingStyle.fill;
+    //a circle
+    if(toggleVal) {
+      canvas.drawCircle(Offset(leftThumbW, leftThumbH), radius, paint1);
+      canvas.drawCircle(Offset(leftTopW, leftTopH), rad, paint2);
+      canvas.drawCircle(Offset(leftBottomW, leftBottomH), rad, paint3);
+      canvas.drawCircle(Offset(rightThumbW, rightThumbH), rad, paint4);
+      canvas.drawCircle(Offset(rightTopW, rightTopH), rad, paint5);
+      canvas.drawCircle(Offset(rightBottomW, rightBottomH), rad, paint6);
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => true;
+}
+*/

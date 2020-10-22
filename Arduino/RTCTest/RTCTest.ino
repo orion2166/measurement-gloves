@@ -153,9 +153,10 @@ void loop() {
   getValuesString();
   printForceVals();
   while(true){ //print time every 500ms
-    niceDelay(500);
-    getValuesString();
+    long startTime = millis();
     printForceVals();
+    Serial.println("Time taken: " + String(millis() - startTime));
+    while(millis() - startTime < 200);
   }
 
   /*

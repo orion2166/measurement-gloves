@@ -23,7 +23,9 @@ int currMode = 0;
 int curr_time[4]; //[0]: hour, [1]: min, [2]: sec, [3]: millisec
 unsigned long initial_ms;
 unsigned long rtc_set_ms; //the time (hr, min, sec) when rtc was set (in milliseconds)
+
 /* ------------------------------ Change State Function ------------------------------ */
+/*
 void changeState()
 {
     switch(currMode){
@@ -47,8 +49,7 @@ void changeState()
       delay(500);
     }
 }
-
-
+*/
 String getValuesString()
 {
     DateTime now = rtc.now();
@@ -60,17 +61,14 @@ String getValuesString()
       + String(now.month()) + ":"
       + String(now.day()) + ":"
       + String(curr_time[0]) + ":"  //hour
-      + String(curr_time[1])) + ":" //min
+      + String(curr_time[1]) + ":" //min
       + String(curr_time[2]) + ":"  //sec
       + String(curr_time[3]) + ":"  //millisec
       + String() + ":"
       + ",";
-    toReturn += "\"THUMB 1\":" + String(analogRead(THUMB_1)) + ",";
-    toReturn += "\"PALM 1\":" + String(analogRead(PALM_1)) + ",";
-    toReturn += "\"PALM 2\":" + String(analogRead(PALM_2)) + "}";
     return toReturn;
 }
-/*call init_time when starting recording*/
+/*call set_time when starting recording*/
 void set_time(){
   //Set initial time with RTC
   DateTime start_time = rtc.now(); //year|month|day|hour|min|sec
@@ -86,7 +84,7 @@ void formatMS(unsigned long ms){ //converts milliseconds to format of hours, min
   curr_time[0] = (int)(ms /3.6 * pow(10, 6)); //hour
   curr_time[1] = (int)((ms/60000) - curr_time[0] * 60); //min
   curr_time[2] = (int)((ms/1000) -(curr_time[0]*60*60 + curr_time[1]*60)); //sec
-  curr_time[3] = (int)((ms - (curr_time[0]*60*60*1000 + curr_time[1]*60*1000 + curr_time[2]*1000)); //millisec
+  curr_time[3] = (int)((ms - (curr_time[0]*60*60*1000) + curr_time[1]*60*1000 + curr_time[2]*1000)); //millisec
 }
 void printForceVals()
 {
@@ -105,9 +103,10 @@ void setup() {
   Serial.begin(9600);
   
   /* --------- STATUS LED SETUP --------- */
+  /*
   pinMode(STATUS_LED_1, OUTPUT);
   pinMode(STATUS_LED_2, OUTPUT);
-
+  */
   /* --------- RTC MODULE SETUP --------- */
   #ifndef ESP8266
     while (!Serial); // wait for serial port to connect. Needed for native USB
@@ -136,7 +135,16 @@ void setup() {
   
 }
 void loop() {
-  
+  set_time();
+  getValuesString();
+  printForceVals();
+  while(true){ //print time every 500ms
+    niceDelay(500);
+    getValuesString();
+    printForceVals();
+  }
+
+  /*
   // If button is pressed, change the state
   if(digitalRead(BUTTON) == HIGH) {
     Serial.print("State Change !!!");
@@ -160,4 +168,6 @@ void loop() {
   
   // Delay Loop
   niceDelay(50);
+
+  */
 }

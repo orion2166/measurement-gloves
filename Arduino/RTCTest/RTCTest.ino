@@ -81,10 +81,24 @@ void set_time(){
   rtc_set_ms = start_hr + start_min + start_sec;
 }
 void formatMS(unsigned long ms){ //converts milliseconds to format of hours, minutes, seconds, milliseconds
+  /*
   curr_time[0] = (int)(ms /3.6 * pow(10, 6)); //hour
   curr_time[1] = (int)((ms/60000) - curr_time[0] * 60); //min
   curr_time[2] = (int)((ms/1000) -(curr_time[0]*60*60 + curr_time[1]*60)); //sec
   curr_time[3] = (int)((ms - (curr_time[0]*60*60*1000) + curr_time[1]*60*1000 + curr_time[2]*1000)); //millisec
+  */
+  unsigned long currentMillis = ms;
+  unsigned long seconds = currentMillis / 1000;
+  unsigned long minutes = seconds / 60;
+  unsigned long hours = minutes / 60;
+  currentMillis %= 1000;
+  seconds %= 60;
+  minutes %= 60;
+  hours %= 24;
+  curr_time[0] = hours;
+  curr_time[1] = minutes;
+  curr_time[2] = seconds;
+  curr_time[3] = currentMillis;
 }
 void printForceVals()
 {

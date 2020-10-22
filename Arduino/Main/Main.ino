@@ -18,11 +18,8 @@ int buttonState = 0;
 #define STANDBY_MODE 0          // White On | Green Off
 #define RECORDING_MODE 1        // White Off | Green On
 // ERRORS
-#define SENSOR_ERROR_WIRING 2     // White Blinking | Green Blinking
-#define RTC_ERROR_WIRING 3      // White On | Green On
-#define RTC_ERROR_NO_TIME 4     // White Off | Green Off
-#define SD_ERROR_WIRING 5       // White Blinking | Green On
-#define SD_ERROR_NO_CARD 6      // White On | Green Blinking
+#define RTC_ERROR 2
+#define SD_ERROR 3
 
 // Global State Variable
 int currMode;
@@ -31,8 +28,8 @@ int currMode;
 /* --------------------------------------------------- HELPER FUNCTIONS --------------------------------------------------- */
 /* ------------------------------------------------------------------------------------------------------------------------ */
 
-/* ------------------------------ Glove State Handler ------------------------------ */
-void changeState()
+/* ------------------------------ Glove State Intermission ------------------------------ */
+void buttonIntermission()
 {
     for (int i=0; i<3; i++) {
       digitalWrite(STATUS_LED_WHITE,HIGH);
@@ -42,54 +39,39 @@ void changeState()
       digitalWrite(STATUS_LED_GREEN,HIGH);
       delay(500);
     }
+}
+
+/* ------------------------------ Glove State Handler ------------------------------ */
+void changeState(int newMode) {
+
+    Serial.print("Mode = ");
+    Serial.print(newMode);
+    Serial.println();
+
+    currMode = newMode;
     
     switch(currMode){
-      case 0:                                             // Recording Mode
-        // Set Global Variable
-        currMode = RECORDING_MODE;
-        // Set Status Lights
-        digitalWrite(STATUS_LED_WHITE,LOW);
-        digitalWrite(STATUS_LED_GREEN,HIGH);
-        // Print to Console
-        Serial.print("Mode = Recording Mode\n");
-        break;
-      case 1:                                             // Standby Mode
-        // Set Global Variable
-        currMode = STANDBY_MODE;
+      /* --------------- Set Standby Mode --------------- */
+      case STANDBY_MODE:
         // Set Status Lights
         digitalWrite(STATUS_LED_WHITE,HIGH);
         digitalWrite(STATUS_LED_GREEN,LOW);
-        // Print to Console
-        Serial.print("Mode = Standby Mode\n");
-        Serial.println();
         break;
-      case 2:                                             // Sensor Error
-        while(1){
-          // White Blink
-          // Green Blink
-        }
+      /* --------------- Set Recording Mode --------------- */
+      case RECORDING_MODE:
+        // Set Status Lights
+        digitalWrite(STATUS_LED_WHITE, LOW);
+        digitalWrite(STATUS_LED_GREEN, HIGH);
         break;
-      case 3:                                             // RTC Error - Wiring
-        while(1){
-          digitalWrite(STATUS_LED_WHITE,HIGH);
-          digitalWrite(STATUS_LED_GREEN,HIGH);
-        }
+      /* --------------- Generic RTC Error --------------- */
+      case RTC_ERROR:
+          digitalWrite(STATUS_LED_WHITE, HIGH);
+          digitalWrite(STATUS_LED_GREEN, HIGH);
         break;
-      case 4:                                             // RTC Error - Missing Time
-        while(1){
-          digitalWrite(STATUS_LED_WHITE,LOW);
-          digitalWrite(STATUS_LED_GREEN,LOW);
-        }
-        break;
-      case 5:                                             // SD Error - Wiring
-        while(1){
-          // White Blinking | Green On
-        }
-        break;
-      case 6:                                             // SD Error - Missing Card
-        while(1){
-          // White On | Green Blinking
-        }
+      /* --------------- Generic SD Error --------------- */
+      case SD_ERROR:
+          digitalWrite(STATUS_LED_WHITE, LOW);
+          digitalWrite(STATUS_LED_GREEN, LOW);
         break;
     }
 }
@@ -98,7 +80,6 @@ void changeState()
 String getValuesString()
 {
     DateTime now = rtc.now();
-//    String toReturn = "{\"Time\":" + String(millis()) + ",";
     String toReturn = "{\"Time\":" + String(now.year()) + ":" 
       + String(now.month()) + ":"
       + String(now.day()) + ":"
@@ -121,9 +102,6 @@ void printVals()
   Serial.print("\n");
 }
 
-/* ------------------------------ Error Handler ------------------------------ */
-
-
 /* ------------------------------------------------------------------------------------------------------------- */
 /* --------------------------------------------------- SETUP --------------------------------------------------- */
 /* ------------------------------------------------------------------------------------------------------------- */
@@ -131,8 +109,7 @@ void setup() {
   Serial.begin(9600);
   
   /* --------- Initialize Standy Mode --------- */
-  currMode = STANDBY_MODE;
-  changeState();
+  changeState(STANDBY_MODE);
 
   /* --------- Initialize RTC Module --------- */
   #ifndef ESP8266
@@ -140,16 +117,21 @@ void setup() {
   #endif
 
   if (! rtc.begin()) {
-    // Console Stuff
+    
+    // Console Print
     Serial.println("Couldn't find RTC");
+    
     // Caller Error Handler - RTC WIRING
-    currMode = RTC_ERROR_WIRING;
-    changeState();
+    changeState(RTC_ERROR);
     Serial.flush();
     abort();
+    
   }
 
   if (! rtc.initialized() || rtc.lostPower()) {
+    
+    changeState(RTC_ERROR);
+    
     Serial.println("RTC is NOT initialized, let's set the time!");
     // When time needs to be set on a new device, or after a power loss, the
     // following line sets the RTC to the date & time this sketch was compiled
@@ -162,10 +144,6 @@ void setup() {
     // without battery before calling adjust(). This gives the PCF8523's
     // crystal oscillator time to stabilize. If you call adjust() very quickly
     // after the RTC is powered, lostPower() may still return true.
-
-    // Caller Error Handler - RTC TIME
-//    currMode = RTC_ERROR_NO_TIME;
-//    changeState();
   }
   
 }
@@ -177,16 +155,22 @@ void setup() {
 void loop() {
   
   /* --------- Change State on Button Press --------- */
-  if(digitalRead(BUTTON) == HIGH) {
-    Serial.print("State Change !!!");
-    Serial.print("\n");
-    changeState();
+  if(digitalRead(BUTTON) == HIGH && currMode != RTC_ERROR && currMode != SD_ERROR) {
+    // Console Print
+    Serial.println("\nState Change !!!");
+    // Hold Button Input
+    buttonIntermission();
+    // Toggle State
+    if (currMode == STANDBY_MODE) { changeState(RECORDING_MODE); }
+    else { changeState(STANDBY_MODE); }
   }
+  
   /* --------- Collect Values if in Recording Mode --------- */
   if (currMode == RECORDING_MODE){  // Recording Mode
     printVals();
   }
   
   // Delay Loop
-  delay(50);
+//  delay(50);
+  delay(200); // 5 readings a second
 }

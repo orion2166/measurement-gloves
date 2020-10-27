@@ -23,7 +23,9 @@ int buttonState = 0;
 
 // Global State Variable
 int currMode;
-
+int curr_time[4]; //[0]: hour, [1]: min, [2]: sec, [3]: millisec
+unsigned long initial_ms; //ms passed until rtc was set
+unsigned long rtc_set_ms; //the time (hr, min, sec) when rtc was set (in milliseconds)
 /* ------------------------------------------------------------------------------------------------------------------------ */
 /* --------------------------------------------------- HELPER FUNCTIONS --------------------------------------------------- */
 /* ------------------------------------------------------------------------------------------------------------------------ */
@@ -79,13 +81,16 @@ void changeState(int newMode) {
 /* ------------------------------ Collect RTC + Force Values ------------------------------ */
 String getValuesString()
 {
-    DateTime now = rtc.now();
+    unsigned long curr_ms = rtc_set_ms + (millis() - initial_ms); //millis() - initial_ms = time passed after setting initial time
+    formatMS(curr_ms);
     String toReturn = "{\"Time\":" + String(now.year()) + ":" 
       + String(now.month()) + ":"
       + String(now.day()) + ":"
-      + String(now.hour()) + ":"
-      + String(now.minute()) + ":"
-      + String(now.second()) + ":"
+      + String(curr_time[0]) + ":"  //hour
+      + String(curr_time[1]) + ":" //min
+      + String(curr_time[2]) + ":"  //sec
+      + String(curr_time[3]) + ":"  //millisec
+      + String() + ":"
       + ",";
     toReturn += "\"THUMB 1\":" + String(analogRead(THUMB_1)) + ",";
     toReturn += "\"PALM 1\":" + String(analogRead(PALM_1)) + ",";
@@ -101,7 +106,33 @@ void printVals()
   Serial.print("\n");
   Serial.print("\n");
 }
+/* ------------------------------ Append milliseconds to RTC ----------------------------------- */
+/*call set_time when starting recording*/
+void set_time(){
+  //Set initial time with RTC
+  DateTime start_time = rtc.now(); //year|month|day|hour|min|sec
+  initial_ms = millis();
 
+  //convert hr,min,sec to milliseconds
+  unsigned long start_hr = start_time.hour() * 3.6 * pow(10, 6); //in milliseconds
+  unsigned long start_min = start_time.minute() * 60000;
+  unsigned long start_sec = start_time.second() * 1000;
+  rtc_set_ms = start_hr + start_min + start_sec;
+}
+void formatMS(unsigned long ms){ //converts milliseconds to format of hours, minutes, seconds, milliseconds
+  unsigned long currMs = ms;
+  unsigned long seconds = currMs / 1000;
+  unsigned long minutes = seconds / 60;
+  unsigned long hours = minutes / 60;
+  currMs %= 1000;
+  seconds %= 60;
+  minutes %= 60;
+  hours %= 24;
+  curr_time[0] = hours;
+  curr_time[1] = minutes;
+  curr_time[2] = seconds;
+  curr_time[3] = currMs;
+}
 /* ------------------------------------------------------------------------------------------------------------- */
 /* --------------------------------------------------- SETUP --------------------------------------------------- */
 /* ------------------------------------------------------------------------------------------------------------- */
@@ -167,6 +198,7 @@ void loop() {
   
   /* --------- Collect Values if in Recording Mode --------- */
   if (currMode == RECORDING_MODE){  // Recording Mode
+    set_time(); 
     printVals();
   }
   

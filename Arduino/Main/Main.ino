@@ -145,6 +145,8 @@ void setup() {
     // crystal oscillator time to stabilize. If you call adjust() very quickly
     // after the RTC is powered, lostPower() may still return true.
   }
+
+  // Check for SD Card Wired & SD Card Available
   
 }
 
@@ -167,10 +169,11 @@ void loop() {
   
   /* --------- Collect Values if in Recording Mode --------- */
   if (currMode == RECORDING_MODE){  // Recording Mode
-    printVals();
+    // Check for SD Card
+    printVals(); // Get Values
+    // Write Vals to SD
   }
   
   // Delay Loop
-//  delay(50);
   delay(200); // 5 readings a second
 }

@@ -264,7 +264,14 @@ void loop()
             {
                 char rtcString[128];
                 strncpy(rtcString, (char *)rtcCharacteristic.value(), rtcCharacteristic.valueLength());
-                // Reset RTC with this somehow..
+                if(currMode == RECORDING_MODE)
+                {
+                    rtcCharacteristic.writeValue("Can't reset RTC while recording");
+                }
+                else
+                {
+                    // Reset RTC
+                }
             }
             // Send the current status and battery
             infoCharacteristic.writeValue(getStatusBatteryString().c_str());

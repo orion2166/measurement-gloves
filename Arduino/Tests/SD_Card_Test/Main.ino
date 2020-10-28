@@ -1,10 +1,11 @@
 //#include <Arduino_LSM9DS1.h> // For IMU Stuff
 //#include <ArduinoBLE.h>      // For BLE Stuff
 #include "RTClib.h"
-#include <SD.h>
+#include <SPI.h>
+#include "Sdfat.h"
 
 /* --------SD CONSTANTS --------- */
-#define SD_CARD D9
+const uint8_t chipSelect = 4;
 /* --------- RTC CONSTANTS --------- */
 RTC_PCF8523 rtc;
 /* --------- FORCE SENSOR CONSTANTS --------- */
@@ -29,8 +30,10 @@ int currMode;
 int curr_time[4]; //[0]: hour, [1]: min, [2]: sec, [3]: millisec
 unsigned long initial_ms; //ms passed until rtc was set
 unsigned long rtc_set_ms; //the time (hr, min, sec) when rtc was set (in milliseconds)
-String fileName = String();	// current file we will be writing to
-unsigned int sessionNumber = 1;	// keep track of session number
+String fileName = String();  // current file we will be writing to
+unsigned int sessionNumber = 1; // keep track of session number
+SdFat sd; // file system object
+SdFile dataFile;  // log file
 /* ------------------------------------------------------------------------------------------------------------------------ */
 /* --------------------------------------------------- HELPER FUNCTIONS --------------------------------------------------- */
 /* ------------------------------------------------------------------------------------------------------------------------ */
@@ -63,6 +66,7 @@ void changeState(int newMode) {
         // Set Status Lights
         digitalWrite(STATUS_LED_WHITE,HIGH);
         digitalWrite(STATUS_LED_GREEN,LOW);
+        // close file if there is an open file
         break;
       /* --------------- Set Recording Mode --------------- */
       case RECORDING_MODE:
@@ -88,7 +92,7 @@ void changeState(int newMode) {
 /* ------------------------------ Collect RTC + Force Values ------------------------------ */
 String getValuesString()
 {
-    unsigned long curr_ms = rtc_set_ms + (millis() - initial_ms); //millis() - initial_ms = time passed after setting initial time
+   /* unsigned long curr_ms = rtc_set_ms + (millis() - initial_ms); //millis() - initial_ms = time passed after setting initial time
     formatMS(curr_ms);
     String toReturn = "{\"Time\":" + String(now.year()) + ":"
       + String(now.month()) + ":"
@@ -102,7 +106,8 @@ String getValuesString()
     toReturn += "\"THUMB 1\":" + String(analogRead(THUMB_1)) + ",";
     toReturn += "\"PALM 1\":" + String(analogRead(PALM_1)) + ",";
     toReturn += "\"PALM 2\":" + String(analogRead(PALM_2)) + "}";
-    return toReturn;
+    return toReturn; */
+    return "testing string";
 }
 
 /* ------------------------------ Collect RTC + Force Values ------------------------------ */
@@ -143,8 +148,6 @@ void formatMS(unsigned long ms){ //converts milliseconds to format of hours, min
 
 /* ------------------------------ Create new session file  ------------------------------ */
 void generateSessionFile() {
-// check there is SD card connected
-  if (SD.begin(SD_CARD)) {
     String message = String();
     DateTime now = rtc.now();
 
@@ -154,43 +157,34 @@ void generateSessionFile() {
     fileName += sessionNumber;
     fileName += ".csv";
     message = fileName;
-    char charFileName[fileName.length() + 1];
-    fileName.toCharArray(charFileName, sizeof(charFileName));
 
     // generate new session file if already exists
-    if (SD.exists(charFileName)) {
+    if (sd.exists(fileName.c_str())) {
       message += " exists.";
       sessionNumber++;
     }
     else {
-      File dataFile = SD.open(charFileName, FILE_WRITE);
+      if (!dataFile.open(fileName.c_str(), O_WRONLY)) {
+        Serial.println("Error opening file");
+        changeState(SD_ERROR);
+      }
+      //dataFile = sd.open(fileName.c_str(), O_WRONLY);
       // write headers to file
       dataFile.println("RTC,Thumb,Grip,Hand");
       message += " created.";
-      dataFile.close();
+      //dataFile.close();
     }
     Serial.println(message);
-  }
-  else {
-    Serial.println("SD card missing or failure");
-    // throw error
-    changeState(SD_ERROR);
-  }
 }
 void writeToFile() {
-	char charFileName[fileName.length() + 1];
-  fileName.toCharArray(charFileName, sizeof(charFileName));
-  dataFile = SD.open(charFileName, FILE_WRITE);
+  //dataFile = sd.open(fileName.c_str(), O_WRONLY);
   if (dataFile) {
       String Vals = getValuesString();
-      // convert string to char array before writing
-      char charVals[Vals.length() + 1];
-      Vals.toCharArray(charVals, sizeof(charVals));
-      dataFile.println(charVals);
-      dataFile.close();
+      dataFile.println(Vals);
+      //dataFile.close();
     }
   else {
-    Serial.println("Error opening file");
+    Serial.println("Error writing to file");
     changeState(SD_ERROR);
   }
 }
@@ -237,7 +231,13 @@ void setup() {
     // crystal oscillator time to stabilize. If you call adjust() very quickly
     // after the RTC is powered, lostPower() may still return true.
   }
-  pinMode(SD_CARD, OUTPUT);
+  pinMode(chipSelect, OUTPUT);
+  digitalWrite(chipSelect, HIGH);
+// call SD.begin once in setup
+  if (!sd.begin(chipSelect, SD_SCK_MHZ(15))) {
+    Serial.println("Card Failed.");
+    changeState(SD_ERROR);
+  }
 }
 
 
@@ -245,7 +245,7 @@ void setup() {
 /* --------------------------------------------------- MAIN LOOP --------------------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------------------- */
 void loop() {
-
+  changeState(RECORDING_MODE);
   /* --------- Change State on Button Press --------- */
   if(digitalRead(BUTTON) == HIGH && currMode != RTC_ERROR && currMode != SD_ERROR) {
     // Console Print
@@ -262,6 +262,16 @@ void loop() {
     set_time();
     //printVals();
     writeToFile();
+
+    // Force data to SD and update the directory entry to avoid data loss.
+    if (!dataFile.sync() || dataFile.getWriteError()) {
+      error("write error");
+    }
+
+    if (Serial.available()) {
+      // Closa file and stop
+      dataFile.close();
+    }
   }
 
   // Delay Loop

@@ -17,9 +17,9 @@ void set_battery(){
   
   // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
   float V = sensorValue * (3.3 / 1023.0);
-  Serial.println(voltage);
+  Serial.println(V);
   
-  float percentage = voltage / 3.0 * 100;
+  float percentage = V / 3.0 * 100;
   // print out the value you read:
   Serial.println(String(percentage) + "%");
 
@@ -39,6 +39,13 @@ void setup()
 
 void loop()
 {
-  set_battery();
+//  set_battery();
+
+  RGB_color(255,0,255);
   delay(200);
+  RGB_color(0,0,255);
+  delay(200);
+  RGB_color(0,255,255);
+  delay(200);
+  
 }

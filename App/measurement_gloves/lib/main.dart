@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import './GloveApp.dart';
 import './heartbeat.dart';
+import './leftHand.dart';
+import './rightHand.dart';
 
 void main() => runApp(MyApp());
 
@@ -14,6 +16,8 @@ class MyApp extends StatelessWidget {
         '/': (context) => FirstScreen(),
         //'/GloveApp': (context) => GloveApp(),
         '/heartbeat': (context) => Heartbeat(),
+        '/leftHand': (context) => LeftHand(),
+        '/rightHand': (context) => RightHand(),
       },
     );
   }
@@ -25,6 +29,7 @@ class FirstScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('Gloves Nearby'),
+        backgroundColor: Colors.blueGrey,
       ),
       body: ListView(
         children: ListTile.divideTiles(
@@ -35,7 +40,7 @@ class FirstScreen extends StatelessWidget {
               trailing: Icon(Icons.keyboard_arrow_right),
               onTap: () {
                 //Navigator.of(context).pushNamed('/GloveApp');
-                Navigator.of(context).pushNamed('/heartbeat');
+                Navigator.of(context).pushNamed('/leftHand');
               },
             ),
             ListTile(
@@ -43,7 +48,7 @@ class FirstScreen extends StatelessWidget {
               trailing: Icon(Icons.keyboard_arrow_right),
               onTap: () {
                 //Navigator.of(context).pushNamed('/GloveApp');
-                Navigator.of(context).pushNamed('/heartbeat');
+                Navigator.of(context).pushNamed('/rightHand');
               },
             ),
             ListTile(

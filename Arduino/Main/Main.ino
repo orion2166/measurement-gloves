@@ -39,6 +39,10 @@ unsigned long last_ble_time;  // The last time BLE was accessed
 /* --------------------------------------------------- HELPER FUNCTIONS --------------------------------------------------- */
 /* ------------------------------------------------------------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------------------------------ */
+/* ------------------------------------ STATE MANAGEMENT ------------------------------------ */
+/* ------------------------------------------------------------------------------------------ */
+
 /* ------------------------------ Glove State Intermission ------------------------------ */
 void buttonIntermission()
 {
@@ -89,6 +93,10 @@ void changeState(int newMode)
         break;
     }
 }
+
+/* ----------------------------------------------------------------------------------------- */
+/* ------------------------------------ DATA COLLECTION ------------------------------------ */
+/* ----------------------------------------------------------------------------------------- */
 
 /* ------------------------------ Collect RTC + Force Values ------------------------------ */
 String getValuesString()
@@ -148,10 +156,46 @@ void formatMS(unsigned long ms)
     curr_time[3] = currMs;
 }
 
-String getStatusBatteryString()
-{
-    // Need to add battery reading
-    return "{\"state\":" + String(currMode) + "}";
+/* -------------------------------------------------------------------------------------- */
+/* ------------------------------------ DATA STORAGE ------------------------------------ */
+/* -------------------------------------------------------------------------------------- */
+
+/* write SD stuff here */
+
+/* ---------------------------------------------------------------------------------------- */
+/* ------------------------------------ BATTERY STATUS ------------------------------------ */
+/* ---------------------------------------------------------------------------------------- */
+
+//String getStatusBatteryString()
+//{
+//    // Need to add battery reading
+//    return "{\"state\":" + String(currMode) + "}";
+//}
+
+void RGB_color(int red_light_value, int green_light_value, int blue_light_value)
+ {
+  analogWrite(RGB_RED, red_light_value);
+  analogWrite(RGB_GREEN, green_light_value);
+  analogWrite(RGB_BLUE, blue_light_value);
+}
+
+void set_battery(){
+  
+ // read analog voltage from battery
+  int sensorValue = analogRead(BATTERY);
+  
+  // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
+  float V = sensorValue * (3.3 / 1023.0);
+  Serial.println(V);
+  
+//  float percentage = V / 3.0 * 100;
+  // print out the value you read:
+//  Serial.println(String(percentage) + "%");
+
+  // set battery LEDs
+  if (V >= 2.65) { RGB_color(255,0,255); }
+  if (V < 2.65 && V >= 2.5) { RGB_color(0,0,255); }
+  if (V < 2.5) { RGB_color(0,255,255); }
 }
 
 /* ------------------------------------------------------------------------------------------------------------- */
@@ -250,6 +294,9 @@ void loop()
         printVals(); // Get Values
                      // Write Vals to SD
     }
+
+    /* ---------- Set Battery Indicator ---------- */
+    set_battery();
 
     /* --------- BLE Stuff --------- */
     BLEDevice central = BLE.central();

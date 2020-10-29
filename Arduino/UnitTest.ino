@@ -81,47 +81,18 @@ void changeState(int newMode)
 
 void changeState_Test()
 {
-
-    Serial.println("changeState() Test:");
+    Serial.println("changeState() Test: ");
+    bool passed = true;
 
     changeState(STANDBY_MODE);
     if (currMode == STANDBY_MODE)
     {
-        Serial.println("Test 1 Passed");
+        Serial.print("Passed");
     }
     else
     {
-        Serial.println("Test 1 Failed");
-    }
-
-    changeState(RECORDING_MODE);
-    if (currMode == RECORDING_MODE)
-    {
-        Serial.println("Test 2 Passed");
-    }
-    else
-    {
-        Serial.println("Test 2 Failed");
-    }
-
-    changeState(RTC_ERROR);
-    if (currMode == RTC_ERROR)
-    {
-        Serial.println("Test 3 Passed");
-    }
-    else
-    {
-        Serial.println("Test 3 Failed");
-    }
-
-    changeState(SD_ERROR);
-    if (currMode == SD_ERROR)
-    {
-        Serial.println("Test 4 Passed");
-    }
-    else
-    {
-        Serial.println("Test 4 Failed");
+        passed = false;
+        Serial.println("Failed");
     }
 }
 
@@ -142,18 +113,18 @@ void buttonIntermission()
 void buttonIntermission_Test()
 {
 
-    Serial.println("buttonIntermission() Test:");
+    Serial.println("buttonIntermission() Test: ");
 
     startTime = millis();
     buttonIntermission();
 
     if (startTime > 1000)
     {
-        Serial.println("Test 1 Passed");
+        Serial.println("Passed");
     }
     else
     {
-        Serial.println("Test 1 Failed");
+        Serial.println("Failed");
     }
 }
 
@@ -186,7 +157,7 @@ void initSessionTime()
 
 void initSessionTime_Test()
 {
-    Serial.println("initSessionTime() Test:");
+    Serial.println("initSessionTime() Test: ");
 
     rtc_set_ms = millis();
     initial_ms = millis();
@@ -198,11 +169,11 @@ void initSessionTime_Test()
 
     if ((rtc_set_ms != old_rtc_set_ms) && (initial_ms != old_initial_ms) && (rtc_set_ms > old_rtc_set_ms) && (initial_ms > old_initial_ms))
     {
-        Serial.println("Test 1 Passed");
+        Serial.println("Passed");
     }
     else
     {
-        Serial.println("Test 1 Failed");
+        Serial.println("Failed");
     }
 }
 
@@ -230,7 +201,7 @@ void getTimeFromMillis(unsigned long ms)
 
 void getTimeFromMillis_Test()
 {
-    Serial.println("getTimeFromMillis() Test:");
+    Serial.println("getTimeFromMillis() Test: ");
 
     unsigned long testTime = 66630030; // 6:30:30:30 PM in ms
 
@@ -238,11 +209,11 @@ void getTimeFromMillis_Test()
 
     if ((curr_time[0] != 18) && (curr_time[1] != 30) && (curr_time[2] != 30) && (curr_time[3] != 30))
     {
-        Serial.println("Test 1 Passed");
+        Serial.println("Passed");
     }
     else
     {
-        Serial.println("Test 1 Failed");
+        Serial.println("Failed");
     }
 }
 
@@ -263,17 +234,17 @@ String getDataString()
 
 void getDataString_Test()
 {
-    Serial.println("getDataString_Test() Test:");
+    Serial.println("getDataString_Test() Test: ");
 
     string dataString = getDataString();
 
     if (dataString.length() > 0)
     {
-        Serial.println("Test 1 Passed");
+        Serial.println("Passed");
     }
     else
     {
-        Serial.println("Test 1 Failed");
+        Serial.println("Failed");
     }
 }
 
@@ -328,7 +299,21 @@ float setBatteryIndicator()
     return V;
 }
 
+void setBatteryIndicator_Test()
+{
+    Serial.println("setBatteryIndicator() Test: ");
 
+    float V = setBatteryIndicator();
+
+    if ((V >= 0) && (V <= 3.3))
+    {
+        Serial.println("Passed");
+    }
+    else
+    {
+        Serial.println("Failed");
+    }
+}
 
 /* ------------------------------------------------------------------------------------------------------------- */
 /* --------------------------------------------------- SETUP --------------------------------------------------- */
@@ -359,8 +344,7 @@ void setup()
     if (!BLE.begin())
     {
         Serial.println("starting BLE failed");
-        while (1)
-            ;
+        while (1);
     }
 
     BLE.setLocalName(GLOVE_BLE_NAME);
@@ -379,72 +363,35 @@ void setup()
 /* ----------------------------------------------------------------------------------------------------------------- */
 void loop()
 {
-
-    /* --------- Change State on Button Press --------- */
-    if (digitalRead(BUTTON) == HIGH && currMode != RTC_ERROR && currMode != SD_ERROR)
+    // setup_test()
+    Serial.println("setBatteryIndicator() Test: ");
+    if (currMode == STANDBY_MODE)
     {
-        // Console Print
-        Serial.println("\nState Change !!!");
-        // Hold Button Input
-        buttonIntermission();
-        // Toggle State
-        if (currMode == STANDBY_MODE)
-        {
-            changeState(RECORDING_MODE);
-        }
-        else
-        {
-            changeState(STANDBY_MODE);
-        }
+        Serial.println("Passed");
     }
-
-    /* --------- Collect Values if in Recording Mode --------- */
-    if (currMode == RECORDING_MODE)
+    else
     {
-        // get RTC time + force sensor values
-        vals = getDataString(); // Get Values
-        println(vals);
-
-        // Write Vals to SD
-        // Within function: check for SD card, write to sd card
+        Serial.println("Failed");
     }
+    Serial.println();
 
-    /* ---------- Set Battery Indicator ---------- */
-    setBatteryIndicator();
+    changeState_Test()
+    Serial.println();
 
-    /* --------- BLE Stuff --------- */
-    BLEDevice central = BLE.central();
-    // If there is a connected central device
-    if (central)
-    {
-        // Do this only every second
-        if (last_ble_time - millis() >= BLE_TIME_INTERVAL_MS)
-        {
-            // Check if RTC Was written
-            if (rtcCharacteristic.written)
-            {
-                char rtcString[128];
-                strncpy(rtcString, (char *)rtcCharacteristic.value(), rtcCharacteristic.valueLength());
-                if (currMode == RECORDING_MODE)
-                {
-                    rtcCharacteristic.writeValue("Can't reset RTC while recording");
-                }
-                else
-                {
-                    // Reset RTC
-                }
-            }
-            // Send the current status and battery
-            infoCharacteristic.writeValue(getStatusBatteryString().c_str());
-            if (currMode == RECORDING_MODE)
-            {
-                // Send monitoring data
-                // monitorCharacteristic(getMonitoringDataString().c_str());
-            }
-            last_ble_time = millis();
-        }
-    }
+    buttonIntermission_Test();
+    Serial.println();
 
-    // Delay Loop
-    delay(200); // 5 readings a second
+    initSessionTime_Test();
+    Serial.println();
+
+    getTimeFromMillis_Test();
+    Serial.println();
+
+    getDataString_Test();
+    Serial.println();
+
+    setBatteryIndicator_Test();
+    Serial.println();
+
+    while(1);
 }

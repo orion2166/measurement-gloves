@@ -132,6 +132,37 @@ void buttonIntermission_Test()
 /* ------------------------------------ DATA COLLECTION ------------------------------------ */
 /* ----------------------------------------------------------------------------------------- */
 
+
+/* ------------------------------ Voltage to Force Model ----------------------------------- */
+long getVoltageToForce(int analogReadVal)
+{
+  int fsr;                   // analog reading from fsr resistor divider
+  double forceVal;
+  //fsr = analogRead(pinNum);  // voltage output mapped 0 - 1023
+  fsr = analogReadVal;
+  // Force = 36.1e^(0.00498x) from model
+  if (fsr == 0) {
+    forceVal = 0;
+    return forceVal;
+  }
+  else {
+    forceVal = 0.00498*fsr;
+    forceVal = 36.1*(exp(forceVal));
+  }
+  return forceVal;
+}
+
+long getVoltageToForce_Test() {
+    Serial.println("getVoltageToForce() Test: ");
+
+    long testForce = getVoltageToForce(600);
+    if ((testForce > 690) && (testForce < 720)) {
+        Serial.println("Passed");
+    }
+    else {
+        Serial.println("Failed");
+    }
+}
 /* ------------------------------ Initialize Session Time ----------------------------------- */
 void initSessionTime()
 {
@@ -391,6 +422,9 @@ void loop()
     Serial.println();
 
     setBatteryIndicator_Test();
+    Serial.println();
+
+    getVoltageToForce_Test();
     Serial.println();
 
     while(1);

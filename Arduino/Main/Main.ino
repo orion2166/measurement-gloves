@@ -76,6 +76,11 @@ void changeState(int newMode)
 
     currMode = newMode;
     changeStatusLights();
+
+    if (currMode == RECORDING_MODE)
+    {
+        initSessionTime();
+    }
 }
 
 /* ------------------------------ Glove State Intermission ------------------------------ */

@@ -6,7 +6,7 @@
 RTC_PCF8523 rtc;
 unsigned long rtc_set_ms;    // the time (hr, min, sec) when rtc was set (in milliseconds)
 unsigned long initial_ms;    // ms passed until rtc was set
-int curr_time[4];            // [0]: hour, [1]: min, [2]: sec, [3]: millisec
+int curr_time[7];            // [0]: year, [1]: month, [2]: day, [3]: hour, [4]: min, [5]: sec, [6]: millisec
 unsigned long last_ble_time; // The last time BLE was accessed
 /* --------- FORCE SENSOR CONSTANTS --------- */
 #define THUMB A0
@@ -87,8 +87,11 @@ void changeState_Test()
 {
     Serial.print("changeState() Test: ");
 
+    unsigned long testTime = millis();
+
     changeState(RECORDING_MODE);
-    if (currMode == RECORDING_MODE)
+
+    if ((currMode == RECORDING_MODE) && (initial_ms > testTime))
     {
         Serial.println("Passed");
     }
@@ -119,8 +122,9 @@ void buttonIntermission_Test()
 
     unsigned long startTime = millis();
     buttonIntermission();
+    unsigned long endTime = millis();
 
-    if (startTime > 1000)
+    if (endTime > startTime + 2999)
     {
         Serial.println("Passed");
     }
@@ -134,34 +138,38 @@ void buttonIntermission_Test()
 /* ------------------------------------ DATA COLLECTION ------------------------------------ */
 /* ----------------------------------------------------------------------------------------- */
 
-
 /* ------------------------------ Voltage to Force Model ----------------------------------- */
 long getVoltageToForce(int analogReadVal)
 {
-  int fsr;                   // analog reading from fsr resistor divider
-  double forceVal;
-  //fsr = analogRead(pinNum);  // voltage output mapped 0 - 1023
-  fsr = analogReadVal;
-  // Force = 36.1e^(0.00498x) from model
-  if (fsr == 0) {
-    forceVal = 0;
+    int fsr; // analog reading from fsr resistor divider
+    double forceVal;
+    //fsr = analogRead(pinNum);  // voltage output mapped 0 - 1023
+    fsr = analogReadVal;
+    // Force = 36.1e^(0.00498x) from model
+    if (fsr == 0)
+    {
+        forceVal = 0;
+        return forceVal;
+    }
+    else
+    {
+        forceVal = 0.00498 * fsr;
+        forceVal = 36.1 * (exp(forceVal));
+    }
     return forceVal;
-  }
-  else {
-    forceVal = 0.00498*fsr;
-    forceVal = 36.1*(exp(forceVal));
-  }
-  return forceVal;
 }
 
-long getVoltageToForce_Test() {
+long getVoltageToForce_Test()
+{
     Serial.println("getVoltageToForce() Test: ");
 
     long testForce = getVoltageToForce(600);
-    if ((testForce > 690) && (testForce < 720)) {
+    if ((testForce > 690) && (testForce < 720))
+    {
         Serial.println("Passed");
     }
-    else {
+    else
+    {
         Serial.println("Failed");
     }
 }
@@ -200,7 +208,7 @@ void initSessionTime_Test()
 
     initSessionTime();
 
-    if ((rtc_set_ms != old_rtc_set_ms) && (initial_ms != old_initial_ms) && (rtc_set_ms > old_rtc_set_ms) && (initial_ms > old_initial_ms))
+    if ((rtc_set_ms > old_rtc_set_ms) && (initial_ms > old_initial_ms))
     {
         Serial.println("Passed");
     }
@@ -213,6 +221,12 @@ void initSessionTime_Test()
 /* ------------------------------ Convert MS Count to STD Time ----------------------------------- */
 void getTimeFromMillis(unsigned long ms)
 {
+    DateTime currNow = rtc.now();
+    // set global current time variable
+    curr_time[0] = currNow.year();
+    curr_time[1] = currNow.month();
+    curr_time[2] = currNow.day();
+
     // get total ms, sec, min, & hours from ms
     unsigned long currMs = ms;
     unsigned long seconds = currMs / 1000;
@@ -226,10 +240,10 @@ void getTimeFromMillis(unsigned long ms)
     hours %= 24;
 
     // set global current time variable
-    curr_time[0] = hours;
-    curr_time[1] = minutes;
-    curr_time[2] = seconds;
-    curr_time[3] = currMs;
+    curr_time[3] = hours;
+    curr_time[4] = minutes;
+    curr_time[5] = seconds;
+    curr_time[6] = currMs;
 }
 
 void getTimeFromMillis_Test()
@@ -240,7 +254,7 @@ void getTimeFromMillis_Test()
 
     getTimeFromMillis(testTime);
 
-    if ((curr_time[0] == 18) && (curr_time[1] == 30) && (curr_time[2] == 30) && (curr_time[3] == 30))
+    if ((curr_time[3] == 18) && (curr_time[4] == 30) && (curr_time[5] == 30) && (curr_time[6] == 30))
     {
         Serial.println("Passed");
     }
@@ -253,13 +267,11 @@ void getTimeFromMillis_Test()
 /* ------------------------------ Collect RTC + Force Values ------------------------------ */
 String getDataString()
 {
-    DateTime currNow = rtc.now();
-    unsigned long curr_ms = rtc_set_ms + (millis() - initial_ms); //millis() - initial_ms = time passed after setting initial time
-    getTimeFromMillis(curr_ms);
-    String toReturn = "{\"Time\":" + String(currNow.year()) + ":" + String(currNow.month()) + ":" + String(currNow.day()) + ":" + String(curr_time[0]) + ":" //hour
-                      + String(curr_time[1]) + ":"                                                                                               //min
-                      + String(curr_time[2]) + ":"                                                                                               //sec
-                      + String(curr_time[3]) + ":"                                                                                               //millisec
+    getTimeFromMillis();
+    String toReturn = "{\"Time\":" + String(curr_time[0]) + ":" + String(curr_time[1]) + ":" + String(curr_time[2]) + ":" + String(curr_time[3]) + ":" //hour
+                      + String(curr_time[4]) + ":"                                                                                                     //min
+                      + String(curr_time[5]) + ":"                                                                                                     //sec
+                      + String(curr_time[6]) + ":"                                                                                                     //millisec
                       + String() + ":" + ",";
     toReturn += "\"THUMB\":" + String(analogRead(THUMB)) + ",";
     toReturn += "\"PALM\":" + String(analogRead(PALM)) + "}";
@@ -356,9 +368,10 @@ void setup()
 {
     Serial.begin(9600);
 
-    #ifndef ESP8266
-      while (!Serial); // wait for serial port to connect. Needed for native USB
-    #endif
+#ifndef ESP8266
+    while (!Serial)
+        ; // wait for serial port to connect. Needed for native USB
+#endif
 
     /* --------- Initialize Standy Mode --------- */
     changeState(STANDBY_MODE);
@@ -382,7 +395,8 @@ void setup()
     if (!BLE.begin())
     {
         Serial.println("starting BLE failed");
-        while (1);
+        while (1)
+            ;
     }
 
     BLE.setLocalName(GLOVE_BLE_NAME);
@@ -411,28 +425,29 @@ void loop()
     {
         Serial.println("Failed");
     }
-//    Serial.println();
+    //    Serial.println();
 
     changeState_Test();
-//    Serial.println();
+    //    Serial.println();
 
     buttonIntermission_Test();
-//    Serial.println();
+    //    Serial.println();
 
     initSessionTime_Test();
-//    Serial.println();
+    //    Serial.println();
 
     getTimeFromMillis_Test();
-//    Serial.println();
+    //    Serial.println();
 
     getDataString_Test();
-//    Serial.println();
+    //    Serial.println();
 
-//    setBatteryIndicator_Test();
-//    Serial.println();
+    //    setBatteryIndicator_Test();
+    //    Serial.println();
 
     getVoltageToForce_Test();
     Serial.println();
 
-    while(1);
+    while (1)
+        ;
 }

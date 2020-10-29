@@ -1,13 +1,13 @@
 //#include <Arduino_LSM9DS1.h> // For IMU Stuff
-#include <ArduinoBLE.h>      // For BLE Stuff
+#include <ArduinoBLE.h> // For BLE Stuff
 #include "RTClib.h"
 
 /* --------- RTC CONSTANTS --------- */
 RTC_PCF8523 rtc;
-unsigned long rtc_set_ms;     // the time (hr, min, sec) when rtc was set (in milliseconds)
-unsigned long initial_ms;     // ms passed until rtc was set
-int curr_time[4];             // [0]: hour, [1]: min, [2]: sec, [3]: millisec
-unsigned long last_ble_time;  // The last time BLE was accessed
+unsigned long rtc_set_ms;    // the time (hr, min, sec) when rtc was set (in milliseconds)
+unsigned long initial_ms;    // ms passed until rtc was set
+int curr_time[4];            // [0]: hour, [1]: min, [2]: sec, [3]: millisec
+unsigned long last_ble_time; // The last time BLE was accessed
 /* --------- FORCE SENSOR CONSTANTS --------- */
 #define THUMB A0
 #define PALM A1
@@ -21,7 +21,7 @@ unsigned long last_ble_time;  // The last time BLE was accessed
 #define RECORDING_MODE 1 // White Off | Green On
 #define RTC_ERROR 2
 #define SD_ERROR 3
-int currMode;                 // Global State Variable
+int currMode; // Global State Variable
 /* --------- BLE CONSTANTS --------- */
 BLEService theService("26548447-3cd0-4460-b683-43b332274c2b"); // LEFT HAND
 //BLEService theService("139d09c1-b45a-4c76-b4bd-778dc82a5d67"); // RIGHT HAND
@@ -40,7 +40,8 @@ BLECharacteristic rtcCharacteristic("81600d69-4d48-4d19-b299-7ef5e3b21f69", BLER
 /* ------------------------------------------------------------------------------------------ */
 
 /* ------------------------------ Status Lights Handler ------------------------------ */
-void changeStatusLights() {
+void changeStatusLights()
+{
     switch (currMode)
     {
     /* --------------- Set Standby Mode --------------- */
@@ -78,6 +79,52 @@ void changeState(int newMode)
     changeStatusLights();
 }
 
+void changeState_Test()
+{
+
+    Serial.println("changeState() Test:");
+
+    changeState(STANDBY_MODE);
+    if (currMode == STANDBY_MODE)
+    {
+        Serial.println("Test 1 Passed");
+    }
+    else
+    {
+        Serial.println("Test 1 Failed");
+    }
+
+    changeState(RECORDING_MODE);
+    if (currMode == RECORDING_MODE)
+    {
+        Serial.println("Test 2 Passed");
+    }
+    else
+    {
+        Serial.println("Test 2 Failed");
+    }
+
+    changeState(RTC_ERROR);
+    if (currMode == RTC_ERROR)
+    {
+        Serial.println("Test 3 Passed");
+    }
+    else
+    {
+        Serial.println("Test 3 Failed");
+    }
+
+    changeState(SD_ERROR);
+    if (currMode == SD_ERROR)
+    {
+        Serial.println("Test 4 Passed");
+    }
+    else
+    {
+        Serial.println("Test 4 Failed");
+    }
+}
+
 /* ------------------------------ Glove State Intermission ------------------------------ */
 void buttonIntermission()
 {
@@ -92,12 +139,31 @@ void buttonIntermission()
     }
 }
 
+void buttonIntermission_Test()
+{
+
+    Serial.println("buttonIntermission() Test:");
+
+    startTime = millis();
+    buttonIntermission();
+
+    if (startTime > 1000)
+    {
+        Serial.println("Test 1 Passed");
+    }
+    else
+    {
+        Serial.println("Test 1 Failed");
+    }
+}
+
 /* ----------------------------------------------------------------------------------------- */
 /* ------------------------------------ DATA COLLECTION ------------------------------------ */
 /* ----------------------------------------------------------------------------------------- */
 
 /* ------------------------------ Initialize Session Time ----------------------------------- */
-void initSessionTime(){
+void initSessionTime()
+{
     // check RTC for error
     if (!rtc.begin() || !rtc.initialized() || rtc.lostPower())
     {
@@ -106,22 +172,43 @@ void initSessionTime(){
     }
 
     //convert RTC hr,min,sec to milliseconds
-    DateTime start_time = rtc.now(); //year|month|day|hour|min|sec
+    DateTime start_time = rtc.now();                               //year|month|day|hour|min|sec
     unsigned long start_hr = start_time.hour() * 3.6 * pow(10, 6); //in milliseconds
     unsigned long start_min = start_time.minute() * 60000;
     unsigned long start_sec = start_time.second() * 1000;
+
+    // set global rtc_set_ms
     rtc_set_ms = start_hr + start_min + start_sec;
+
+    // set global intial_ms
+    initial_ms = millis();
 }
 
-/* ------------------------------ Start MS Counter ----------------------------------- */
-void startMilliCounter()
+void initSessionTime_Test()
 {
+    Serial.println("initSessionTime() Test:");
+
+    rtc_set_ms = millis();
     initial_ms = millis();
+
+    old_rtc_set_ms = rtc_set_ms;
+    old_initial_ms = initial_ms;
+
+    initSessionTime();
+
+    if ((rtc_set_ms != old_rtc_set_ms) && (initial_ms != old_initial_ms) && (rtc_set_ms > old_rtc_set_ms) && (initial_ms > old_initial_ms))
+    {
+        Serial.println("Test 1 Passed");
+    }
+    else
+    {
+        Serial.println("Test 1 Failed");
+    }
 }
 
 /* ------------------------------ Convert MS Count to STD Time ----------------------------------- */
 void getTimeFromMillis(unsigned long ms)
-{ 
+{
     // get total ms, sec, min, & hours from ms
     unsigned long currMs = ms;
     unsigned long seconds = currMs / 1000;
@@ -141,15 +228,30 @@ void getTimeFromMillis(unsigned long ms)
     curr_time[3] = currMs;
 }
 
+void getTimeFromMillis_Test()
+{
+    Serial.println("getTimeFromMillis() Test:");
+
+    unsigned long testTime = 66630030; // 6:30:30:30 PM in ms
+
+    getTimeFromMillis(testTime);
+
+    if ((curr_time[0] != 18) && (curr_time[1] != 30) && (curr_time[2] != 30) && (curr_time[3] != 30))
+    {
+        Serial.println("Test 1 Passed");
+    }
+    else
+    {
+        Serial.println("Test 1 Failed");
+    }
+}
+
 /* ------------------------------ Collect RTC + Force Values ------------------------------ */
 String getDataString()
 {
     unsigned long curr_ms = rtc_set_ms + (millis() - initial_ms); //millis() - initial_ms = time passed after setting initial time
     getTimeFromMillis(curr_ms);
-    String toReturn = "{\"Time\":" + String(now.year()) + ":"
-                      + String(now.month()) + ":"
-                      + String(now.day()) + ":"
-                      + String(curr_time[0]) + ":" //hour
+    String toReturn = "{\"Time\":" + String(now.year()) + ":" + String(now.month()) + ":" + String(now.day()) + ":" + String(curr_time[0]) + ":" //hour
                       + String(curr_time[1]) + ":"                                                                                               //min
                       + String(curr_time[2]) + ":"                                                                                               //sec
                       + String(curr_time[3]) + ":"                                                                                               //millisec
@@ -157,6 +259,22 @@ String getDataString()
     toReturn += "\"THUMB\":" + String(analogRead(THUMB)) + ",";
     toReturn += "\"PALM\":" + String(analogRead(PALM)) + "}";
     return toReturn;
+}
+
+void getDataString_Test()
+{
+    Serial.println("getDataString_Test() Test:");
+
+    string dataString = getDataString();
+
+    if (dataString.length() > 0)
+    {
+        Serial.println("Test 1 Passed");
+    }
+    else
+    {
+        Serial.println("Test 1 Failed");
+    }
 }
 
 /* -------------------------------------------------------------------------------------- */
@@ -184,7 +302,7 @@ void RGB_color(int red_light_value, int green_light_value, int blue_light_value)
 }
 
 /* ------------------------------ Calculate & Set LED Color ------------------------------ */
-void setBatteryIndicator()
+float setBatteryIndicator()
 {
 
     // read analog voltage from battery
@@ -206,7 +324,11 @@ void setBatteryIndicator()
     {
         RGB_color(0, 255, 255);
     }
+
+    return V;
 }
+
+
 
 /* ------------------------------------------------------------------------------------------------------------- */
 /* --------------------------------------------------- SETUP --------------------------------------------------- */
@@ -219,16 +341,11 @@ void setup()
     changeState(STANDBY_MODE);
 
     /* --------- Initialize RTC Module --------- */
-    //  #ifndef ESP8266
-    //    while (!Serial); // wait for serial port to connect. Needed for native USB
-    //  #endif
 
     if (!rtc.begin())
     {
         Serial.println("Couldn't find RTC");
         changeState(RTC_ERROR);
-        //    Serial.flush();
-        //    abort();
     }
 
     if (!rtc.initialized() || rtc.lostPower())
@@ -236,22 +353,6 @@ void setup()
         changeState(RTC_ERROR);
         Serial.println("RTC is NOT initialized, let's set the time!");
     }
-
-    /* NEED FOR RTC RESET
-
-    // When time needs to be set on a new device, or after a power loss, the
-    // following line sets the RTC to the date & time this sketch was compiled
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-    // This line sets the RTC with an explicit date & time, for example to set
-    // January 21, 2014 at 3am you would call:
-    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
-    //
-    // Note: allow 2 seconds after inserting battery or applying external power
-    // without battery before calling adjust(). This gives the PCF8523's
-    // crystal oscillator time to stabilize. If you call adjust() very quickly
-    // after the RTC is powered, lostPower() may still return true.
-
-  */
 
     /* --------- Initialize BLE --------- */
     // begin BLE
@@ -267,6 +368,7 @@ void setup()
     theService.addCharacteristic(monitorCharacteristic);
     theService.addCharacteristic(infoCharacteristic);
     BLE.addService(theService);
+
     // start advertising
     BLE.advertise();
     last_ble_time = millis();
@@ -298,16 +400,13 @@ void loop()
 
     /* --------- Collect Values if in Recording Mode --------- */
     if (currMode == RECORDING_MODE)
-    { 
-        // start milli start 
-        startMilliCounter();
-        
+    {
         // get RTC time + force sensor values
         vals = getDataString(); // Get Values
         println(vals);
 
         // Write Vals to SD
-            // Within function: check for SD card, write to sd card
+        // Within function: check for SD card, write to sd card
     }
 
     /* ---------- Set Battery Indicator ---------- */
@@ -316,17 +415,17 @@ void loop()
     /* --------- BLE Stuff --------- */
     BLEDevice central = BLE.central();
     // If there is a connected central device
-    if(central)
+    if (central)
     {
         // Do this only every second
         if (last_ble_time - millis() >= BLE_TIME_INTERVAL_MS)
         {
             // Check if RTC Was written
-            if(rtcCharacteristic.written)
+            if (rtcCharacteristic.written)
             {
                 char rtcString[128];
                 strncpy(rtcString, (char *)rtcCharacteristic.value(), rtcCharacteristic.valueLength());
-                if(currMode == RECORDING_MODE)
+                if (currMode == RECORDING_MODE)
                 {
                     rtcCharacteristic.writeValue("Can't reset RTC while recording");
                 }
@@ -337,7 +436,7 @@ void loop()
             }
             // Send the current status and battery
             infoCharacteristic.writeValue(getStatusBatteryString().c_str());
-            if(currMode == RECORDING_MODE)
+            if (currMode == RECORDING_MODE)
             {
                 // Send monitoring data
                 // monitorCharacteristic(getMonitoringDataString().c_str());

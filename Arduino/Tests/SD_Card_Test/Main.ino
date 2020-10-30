@@ -2,10 +2,10 @@
 //#include <ArduinoBLE.h>      // For BLE Stuff
 #include "RTClib.h"
 #include <SPI.h>
-#include "Sdfat.h"
+#include "SdFat.h"
 
 /* --------SD CONSTANTS --------- */
-const uint8_t chipSelect = 4;
+const uint8_t chipSelect = 10;
 /* --------- RTC CONSTANTS --------- */
 RTC_PCF8523 rtc;
 /* --------- FORCE SENSOR CONSTANTS --------- */
@@ -13,8 +13,8 @@ RTC_PCF8523 rtc;
 #define PALM_1 A1
 #define PALM_2 A2
 /* --------- STTUS LED CONSTANTS --------- */
-#define STATUS_LED_WHITE D2
-#define STATUS_LED_GREEN D3
+#define STATUS_LED_WHITE D4
+#define STATUS_LED_GREEN D2
 /* --------- BUTTON CONSTANTS --------- */
 #define BUTTON D4
 int buttonState = 0;
@@ -74,17 +74,17 @@ void changeState(int newMode) {
         digitalWrite(STATUS_LED_WHITE, LOW);
         digitalWrite(STATUS_LED_GREEN, HIGH);
         // Create new session file
-        generateSessionFile();
+        //generateSessionFile();
         break;
       /* --------------- Generic RTC Error --------------- */
       case RTC_ERROR:
-          digitalWrite(STATUS_LED_WHITE, HIGH);
-          digitalWrite(STATUS_LED_GREEN, HIGH);
+          digitalWrite(STATUS_LED_WHITE, LOW);
+          digitalWrite(STATUS_LED_GREEN, LOW);
         break;
       /* --------------- Generic SD Error --------------- */
       case SD_ERROR:
-          digitalWrite(STATUS_LED_WHITE, LOW);
-          digitalWrite(STATUS_LED_GREEN, LOW);
+          digitalWrite(STATUS_LED_WHITE, HIGH);
+          digitalWrite(STATUS_LED_GREEN, HIGH);
         break;
     }
 }
@@ -159,48 +159,56 @@ void generateSessionFile() {
     message = fileName;
 
     // generate new session file if already exists
-    if (sd.exists(fileName.c_str())) {
+    while (sd.exists(fileName.c_str())) {
       message += " exists.";
       sessionNumber++;
+      Serial.println(message);
+
+      fileName = String(now.year()) + "_"
+      + String(now.month()) + "_"
+      + String(now.day()) + "_#";
+      fileName += sessionNumber;
     }
-    else {
-      if (!dataFile.open(fileName.c_str(), O_WRONLY)) {
-        Serial.println("Error opening file");
-        changeState(SD_ERROR);
-      }
-      //dataFile = sd.open(fileName.c_str(), O_WRONLY);
-      // write headers to file
-      dataFile.println("RTC,Thumb,Grip,Hand");
-      message += " created.";
-      //dataFile.close();
+
+    if (!dataFile.open(fileName.c_str(), O_WRONLY | O_CREAT  | O_EXCL)) {
+//      error("File.open");
+      Serial.println("Error opening file");
+      changeState(SD_ERROR);
+      while(1);
     }
-    Serial.println(message);
+
+    writeHeader();
 }
-void writeToFile() {
-  //dataFile = sd.open(fileName.c_str(), O_WRONLY);
-  if (dataFile) {
-      String Vals = getValuesString();
-      dataFile.println(Vals);
-      //dataFile.close();
-    }
-  else {
-    Serial.println("Error writing to file");
-    changeState(SD_ERROR);
-  }
+
+void writeHeader() {
+  dataFile.println("RTC,Thumb,Grip");
+  Serial.println("WrGEiting headers");
+}
+
+void logData() {
+  // write data to file
+  String Vals = getValuesString();
+  dataFile.println(Vals);
+  Serial.println("Writing to file");
 }
 /* ------------------------------------------------------------------------------------------------------------- */
 /* --------------------------------------------------- SETUP --------------------------------------------------- */
 /* ------------------------------------------------------------------------------------------------------------- */
 void setup() {
   Serial.begin(9600);
-
+  // Wait for USB Serial
+   while (!Serial) {
+    SysCall::yield();
+  }
+  Serial.println("Entering setup");
   /* --------- Initialize Standy Mode --------- */
   changeState(STANDBY_MODE);
 
+  delay(1000);
   /* --------- Initialize RTC Module --------- */
-  #ifndef ESP8266
-    while (!Serial); // wait for serial port to connect. Needed for native USB
-  #endif
+//  #ifndef ESP8266
+//    while (!Serial); // wait for serial port to connect. Needed for native USB
+//  #endif
 
   if (! rtc.begin()) {
 
@@ -231,13 +239,17 @@ void setup() {
     // crystal oscillator time to stabilize. If you call adjust() very quickly
     // after the RTC is powered, lostPower() may still return true.
   }
-  pinMode(chipSelect, OUTPUT);
-  digitalWrite(chipSelect, HIGH);
+//  pinMode(chipSelect, OUTPUT);
+//  digitalWrite(chipSelect, HIGH);
 // call SD.begin once in setup
   if (!sd.begin(chipSelect, SD_SCK_MHZ(15))) {
     Serial.println("Card Failed.");
     changeState(SD_ERROR);
   }
+
+  generateSessionFile();
+  changeState(RECORDING_MODE);
+
 }
 
 
@@ -245,7 +257,7 @@ void setup() {
 /* --------------------------------------------------- MAIN LOOP --------------------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------------------- */
 void loop() {
-  changeState(RECORDING_MODE);
+  Serial.println("Entering loop");
   /* --------- Change State on Button Press --------- */
   if(digitalRead(BUTTON) == HIGH && currMode != RTC_ERROR && currMode != SD_ERROR) {
     // Console Print
@@ -261,17 +273,18 @@ void loop() {
   if (currMode == RECORDING_MODE){  // Recording Mode
     set_time();
     //printVals();
-    writeToFile();
+    logData();
 
     // Force data to SD and update the directory entry to avoid data loss.
     if (!dataFile.sync() || dataFile.getWriteError()) {
       error("write error");
     }
 
-    if (Serial.available()) {
-      // Closa file and stop
-      dataFile.close();
-    }
+//    if (Serial.available()) {
+//      // Closa file and stop
+//      dataFile.close();
+  dataFile.close();
+
   }
 
   // Delay Loop

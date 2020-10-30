@@ -11,8 +11,11 @@ unsigned long last_ble_time; // The last time BLE was accessed
 /* --------- FORCE SENSOR CONSTANTS --------- */
 #define THUMB A0
 #define PALM A1
-/* --------- FORCE SENSOR CONSTANTS --------- */
-#define BATTERY A6
+/* --------- BATTERY CONSTANTS --------- */
+#define BATTERY A4
+#define RGB_RED A7
+#define RGB_GREEN A6
+#define RGB_BLUE A5
 /* --------- STTUS LED CONSTANTS --------- */
 #define STATUS_LED_WHITE D2
 #define STATUS_LED_GREEN D3
@@ -124,7 +127,7 @@ void buttonIntermission_Test()
     buttonIntermission();
     unsigned long endTime = millis();
 
-    if (endTime > startTime + 2999)
+    if (endTime >= startTime + 2999)
     {
         Serial.println("Passed");
     }
@@ -161,7 +164,7 @@ long getVoltageToForce(int analogReadVal)
 
 long getVoltageToForce_Test()
 {
-    Serial.println("getVoltageToForce() Test: ");
+    Serial.print("getVoltageToForce() Test: ");
 
     long testForce = getVoltageToForce(600);
     if ((testForce > 690) && (testForce < 720))
@@ -181,6 +184,7 @@ void initSessionTime()
     {
         Serial.println("RTC ERROR");
         changeState(RTC_ERROR);
+        return;
     }
 
     //convert RTC hr,min,sec to milliseconds
@@ -218,15 +222,9 @@ void initSessionTime_Test()
     }
 }
 
-/* ------------------------------ Convert MS Count to STD Time ----------------------------------- */
+/* ------------------------------ Convert Time of Day in MS Count to Military Time ----------------------------------- */
 void getTimeFromMillis(unsigned long ms)
 {
-    DateTime currNow = rtc.now();
-    // set global current time variable
-    curr_time[0] = currNow.year();
-    curr_time[1] = currNow.month();
-    curr_time[2] = currNow.day();
-
     // get total ms, sec, min, & hours from ms
     unsigned long currMs = ms;
     unsigned long seconds = currMs / 1000;
@@ -264,10 +262,31 @@ void getTimeFromMillis_Test()
     }
 }
 
+/* ------------------------------ Set Current Time ----------------------------------- */
+void getTime()
+{
+    // check RTC for error
+    if (!rtc.begin() || !rtc.initialized() || rtc.lostPower())
+    {
+        Serial.println("RTC ERROR");
+        changeState(RTC_ERROR);
+        return;
+    }
+    
+    DateTime currNow = rtc.now();
+    // set global current time variable
+    curr_time[0] = currNow.year();
+    curr_time[1] = currNow.month();
+    curr_time[2] = currNow.day();
+
+    unsigned long curr_ms = rtc_set_ms + (millis() - initial_ms); //millis() - initial_ms = time passed after setting initial time
+    getTimeFromMillis(curr_ms);
+}
+
 /* ------------------------------ Collect RTC + Force Values ------------------------------ */
 String getDataString()
 {
-    getTimeFromMillis();
+    getTime();
     String toReturn = "{\"Time\":" + String(curr_time[0]) + ":" + String(curr_time[1]) + ":" + String(curr_time[2]) + ":" + String(curr_time[3]) + ":" //hour
                       + String(curr_time[4]) + ":"                                                                                                     //min
                       + String(curr_time[5]) + ":"                                                                                                     //sec
@@ -293,73 +312,6 @@ void getDataString_Test()
         Serial.println("Failed");
     }
 }
-
-/* -------------------------------------------------------------------------------------- */
-/* ------------------------------------ DATA STORAGE ------------------------------------ */
-/* -------------------------------------------------------------------------------------- */
-
-/* write SD stuff here */
-
-/* ---------------------------------------------------------------------------------------- */
-/* ------------------------------------ BATTERY STATUS ------------------------------------ */
-/* ---------------------------------------------------------------------------------------- */
-
-//String getStatusBatteryString()
-//{
-//    // Need to add battery reading
-//    return "{\"state\":" + String(currMode) + "}";
-//}
-
-///* ------------------------------ Set Battery LED Color ------------------------------ */
-//void RGB_color(int red_light_value, int green_light_value, int blue_light_value)
-//{
-//    analogWrite(RGB_RED, red_light_value);
-//    analogWrite(RGB_GREEN, green_light_value);
-//    analogWrite(RGB_BLUE, blue_light_value);
-//}
-//
-///* ------------------------------ Calculate & Set LED Color ------------------------------ */
-//float setBatteryIndicator()
-//{
-//
-//    // read analog voltage from battery
-//    int sensorValue = analogRead(BATTERY);
-//
-//    // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
-//    float V = sensorValue * (3.3 / 1023.0);
-//
-//    // set battery LEDs
-//    if (V >= 2.65)
-//    {
-//        RGB_color(255, 0, 255);
-//    }
-//    if (V < 2.65 && V >= 2.5)
-//    {
-//        RGB_color(0, 0, 255);
-//    }
-//    if (V < 2.5)
-//    {
-//        RGB_color(0, 255, 255);
-//    }
-//
-//    return V;
-//}
-//
-//void setBatteryIndicator_Test()
-//{
-//    Serial.println("setBatteryIndicator() Test: ");
-//
-//    float V = setBatteryIndicator();
-//
-//    if ((V >= 0) && (V <= 3.3))
-//    {
-//        Serial.println("Passed");
-//    }
-//    else
-//    {
-//        Serial.println("Failed");
-//    }
-//}
 
 /* ------------------------------------------------------------------------------------------------------------- */
 /* --------------------------------------------------- SETUP --------------------------------------------------- */
@@ -415,6 +367,8 @@ void setup()
 /* ----------------------------------------------------------------------------------------------------------------- */
 void loop()
 {
+    Serial.println();
+    
     // setup_test()
     Serial.print("setBatteryIndicator() Test: ");
     if (currMode == STANDBY_MODE)
@@ -425,29 +379,27 @@ void loop()
     {
         Serial.println("Failed");
     }
-    //    Serial.println();
+        Serial.println();
 
     changeState_Test();
-    //    Serial.println();
+    Serial.println();
 
     buttonIntermission_Test();
-    //    Serial.println();
+    Serial.println();
 
     initSessionTime_Test();
-    //    Serial.println();
+    Serial.println();
 
     getTimeFromMillis_Test();
-    //    Serial.println();
+    Serial.println();
 
     getDataString_Test();
-    //    Serial.println();
-
-    //    setBatteryIndicator_Test();
-    //    Serial.println();
+    Serial.println();
 
     getVoltageToForce_Test();
     Serial.println();
 
-    while (1)
-        ;
+    Serial.println("Tests Completed");
+    while (1);
+    
 }

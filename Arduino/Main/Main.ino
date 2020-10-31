@@ -1,6 +1,7 @@
 //#include <Arduino_LSM9DS1.h> // For IMU Stuff
 #include <ArduinoBLE.h> // For BLE Stuff
-#include "RTClib.h"
+#include <SPI.h>
+#include "SdFat.h"
 
 /* --------- RTC CONSTANTS --------- */
 RTC_PCF8523 rtc;
@@ -16,7 +17,7 @@ unsigned long last_ble_time; // The last time BLE was accessed
 #define RGB_RED A2
 #define RGB_GREEN A3
 #define RGB_BLUE A5
-/* --------- STTUS LED CONSTANTS --------- */
+/* --------- STATUS LED CONSTANTS --------- */
 #define STATUS_LED_WHITE D4
 #define STATUS_LED_GREEN D2
 /* --------- BUTTON CONSTANTS --------- */
@@ -35,6 +36,12 @@ BLECharacteristic infoCharacteristic("b106d600-3ee1-4a10-8dd7-260074535086", BLE
 BLECharacteristic rtcCharacteristic("81600d69-4d48-4d19-b299-7ef5e3b21f69", BLERead | BLEWrite, 512);
 #define GLOVE_BLE_NAME "Glove 1"
 #define BLE_TIME_INTERVAL_MS 1000
+/* --------- SD CONSTANTS --------- */
+const uint8_t chipSelect = 10;
+String fileName = String();  // current file we will be writing to
+unsigned int sessionNumber = 1; // keep track of session number
+SdFat sd; // file system object
+SdFile dataFile;  // log file
 
 /* ------------------------------------------------------------------------------------------------------------------------ */
 /* --------------------------------------------------- HELPER FUNCTIONS --------------------------------------------------- */
@@ -86,6 +93,14 @@ void changeState(int newMode)
     if (currMode == RECORDING_MODE)
     {
         initSessionTime();
+        generateSessionFile();
+    }
+    if (currMode == STANDBY_MODE)
+    {
+        // check if there is an open file and close it
+        if (dataFile) {
+            dataFile.close();
+        }
     }
 }
 
@@ -108,12 +123,11 @@ void buttonIntermission()
 /* ----------------------------------------------------------------------------------------- */
 
 /* ------------------------------ Voltage to Force Model ----------------------------------- */
-long getVoltageToForce(int analogReadVal)
+long getVoltageToForce(int pinNum)
 {
     int fsr; // analog reading from fsr resistor divider
     double forceVal;
-    //fsr = analogRead(pinNum);  // voltage output mapped 0 - 1023
-    fsr = analogReadVal;
+    fsr = analogRead(pinNum);  // voltage output mapped 0 - 1023
     // Force = 36.1e^(0.00498x) from model
     if (fsr == 0)
     {
@@ -126,21 +140,6 @@ long getVoltageToForce(int analogReadVal)
         forceVal = 36.1 * (exp(forceVal));
     }
     return forceVal;
-}
-
-long getVoltageToForce_Test()
-{
-    Serial.print("getVoltageToForce() Test: ");
-
-    long testForce = getVoltageToForce(600);
-    if ((testForce > 690) && (testForce < 720))
-    {
-        Serial.println("Passed");
-    }
-    else
-    {
-        Serial.println("Failed");
-    }
 }
 
 /* ------------------------------ Initialize Session Time ----------------------------------- */
@@ -218,8 +217,8 @@ String getDataString()
                       + String(curr_time[5]) + ":"                                                                                                     //sec
                       + String(curr_time[6]) + ":"                                                                                                     //millisec
                       + String() + ":" + ",";
-    toReturn += "\"THUMB\":" + String(analogRead(THUMB)) + ",";
-    toReturn += "\"PALM\":" + String(analogRead(PALM)) + "}";
+    toReturn += "\"THUMB\":" + String(getVoltageToForce(THUMB)) + ",";
+    toReturn += "\"PALM\":" + String(getVoltageToForce(PALM)) + "}";
     return toReturn;
 }
 
@@ -227,7 +226,52 @@ String getDataString()
 /* ------------------------------------ DATA STORAGE ------------------------------------ */
 /* -------------------------------------------------------------------------------------- */
 
-/* write SD stuff here */
+/* ------------------------------ Create new session file  ------------------------------ */
+void generateSessionFile() {
+    String message = String();
+    DateTime now = rtc.now();
+
+    fileName = String(now.year()) + "_"
+      + String(now.month()) + "_"
+      + String(now.day()) + "_#";
+    fileName += sessionNumber;
+    fileName += ".csv";
+    message = fileName;
+
+    // generate new session file if already exists
+    while (sd.exists(fileName.c_str())) {
+      message += " exists.";
+      sessionNumber++;
+      Serial.println(message);
+
+      fileName = String(now.year()) + "_"
+      + String(now.month()) + "_"
+      + String(now.day()) + "_#";
+      fileName += sessionNumber;
+    }
+
+    if (!dataFile.open(fileName.c_str(), O_WRONLY | O_CREAT  | O_EXCL)) {
+//      error("File.open");
+      Serial.println("Error opening file");
+      changeState(SD_ERROR);
+      while(1);
+    }
+
+    writeHeader();
+}
+
+void writeHeader() {
+    // write data headers
+    dataFile.println("RTC,Thumb,Palm");
+    Serial.println("Writing headers");
+}
+
+void logData() {
+  // write data to file
+  String Vals = getDataString();
+  dataFile.println(Vals);
+  Serial.println("Writing to file");
+}
 
 /* ---------------------------------------------------------------------------------------- */
 /* ------------------------------------ BATTERY STATUS ------------------------------------ */
@@ -311,7 +355,7 @@ void setup()
 {
     Serial.begin(9600);
     while(!Serial);
-    /* --------- Initialize Standy Mode --------- */
+    /* --------- Initialize Standby Mode --------- */
     changeState(STANDBY_MODE);
 
     /* --------- Initialize RTC Module --------- */
@@ -360,6 +404,14 @@ void setup()
     // start advertising
     BLE.advertise();
     last_ble_time = millis();
+
+    /* --------- Initialize SD card --------- */
+    // call SD.begin once in setup
+    if (!sd.begin(chipSelect, SD_SCK_MHZ(15)))
+    {
+        Serial.println("Card failed");
+        changeState(SD_ERROR);
+    }
 }
 
 /* ----------------------------------------------------------------------------------------------------------------- */
@@ -396,6 +448,13 @@ void loop()
 
         // Write Vals to SD
         // Within function: check for SD card, write to sd card
+        logData();
+        // Force data to SD and update the directory entry to avoid data loss.
+        if (!dataFile.sync() || dataFile.getWriteError())
+        {
+            Serial.println("write error");
+            changeState(SD_ERROR);
+        }
     }
 
     /* ---------- Set Battery Indicator ---------- */

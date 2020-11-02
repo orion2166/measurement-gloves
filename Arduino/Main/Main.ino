@@ -2,7 +2,7 @@
 #include <ArduinoBLE.h> // For BLE Stuff
 #include <SPI.h>
 #include "SdFat.h"
-#include "RTCLib.h"
+#include "RTClib.h"
 
 /* --------- RTC CONSTANTS --------- */
 RTC_PCF8523 rtc;

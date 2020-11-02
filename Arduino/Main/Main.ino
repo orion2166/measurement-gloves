@@ -22,14 +22,16 @@ unsigned long last_ble_time; // The last time BLE was accessed
 #define STATUS_LED_WHITE D4
 #define STATUS_LED_GREEN D2
 /* --------- BUTTON CONSTANTS --------- */
-#define BUTTON D8
+// #define BUTTON D9  // UNCOMMENT FOR BOARD 1
+#define BUTTON D5 // UNCOMMENT FOR BOARD 2
 /* --------- STATE CONSTANTS --------- */
 #define STANDBY_MODE 0   // White On | Green Off
 #define RECORDING_MODE 1 // White Off | Green On
 #define RTC_ERROR 2
 #define SD_ERROR 3
 /* --------- SD CONSTANTS --------- */
-const uint8_t chipSelect = 10;
+const uint8_t chipSelect = 10; // UNCOMMENT FOR BOARD 1
+const uint8_t chipSelect = 9; // UNCOMMENT FOR BOARD 2
 SdFat sd;        // file system object
 SdFile dataFile; // log file
 /* --------- BLE CONSTANTS --------- */
@@ -283,11 +285,11 @@ void logData()
 /* ------------------------------------ BATTERY STATUS ------------------------------------ */
 /* ---------------------------------------------------------------------------------------- */
 
-//String getStatusBatteryString()
-//{
-//    // Need to add battery reading
-//    return "{\"state\":" + String(currMode) + "}";
-//}
+String getStatusBatteryString()
+{
+    // Need to add battery reading
+    return "{\"state\":" + String(currMode) + "}";
+}
 
 ///* ------------------------------ Set Battery LED Color ------------------------------ */
 //void RGB_color(int red_light_value, int green_light_value, int blue_light_value)

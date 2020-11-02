@@ -48,9 +48,7 @@ BLECharacteristic rtcCharacteristic("81600d69-4d48-4d19-b299-7ef5e3b21f69", BLER
 int currMode;                   // Global State Variable
 String fileName = String();     // current file we will be writing to
 unsigned int sessionNumber = 1; // keep track of session number
-
-int count;
-
+unsigned int numReadings;
 /* ------------------------------------------------------------------------------------------------------------------------ */
 /* --------------------------------------------------- HELPER FUNCTIONS --------------------------------------------------- */
 /* ------------------------------------------------------------------------------------------------------------------------ */
@@ -100,17 +98,14 @@ void changeState(int newMode)
 
     if (currMode == RECORDING_MODE)
     {
-        count = 0;
+        numReadings = 0;
         initSessionTime();
         generateSessionFile();
     }
     if (currMode == STANDBY_MODE)
     {
-        Serial.println(count);
-        // check if there is an open file and close it
-        //        if (dataFile) {
+        Serial.println(numReadings);
         dataFile.close();
-        //        }
     }
 }
 
@@ -222,12 +217,12 @@ void getTime()
 /* ------------------------------ Collect RTC + Force Values ------------------------------ */
 String getDataString()
 {
-    String toReturn = "{\"Time\":" + String(curr_time[0]) + ":" + String(curr_time[1]) + ":" + String(curr_time[2]) + ":" + String(curr_time[3]) + ":" //hour
-                      + String(curr_time[4]) + ":"                                                                                                     //min
-                      + String(curr_time[5]) + ":"                                                                                                     //sec
-                      + String(curr_time[6]) + ",";
-    toReturn += "\"THUMB\":" + String(getVoltageToForce(THUMB)) + ",";
-    toReturn += "\"PALM\":" + String(getVoltageToForce(PALM)) + "}";
+    String toReturn = String(curr_time[0]) + ":" + String(curr_time[1]) + ":" + String(curr_time[2]) + ":" + String(curr_time[3]) + ":" // hour
+                      + String(curr_time[4]) + ":"  // min
+                      + String(curr_time[5]) + ":"  // sec
+                      + String(curr_time[6]) + ","; // ms
+    toReturn += String(getVoltageToForce(THUMB)) + ",";
+    toReturn += String(getVoltageToForce(PALM));
     return toReturn;
 }
 
@@ -411,7 +406,7 @@ void loop()
     /* --------- Collect Values if in Recording Mode --------- */
     if (currMode == RECORDING_MODE)
     {
-        count++;
+        ++numReadings;
         // get RTC time + force sensor values
         getTime();
         String vals = getDataString(); // Get Values

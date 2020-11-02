@@ -1,4 +1,3 @@
-//#include <Arduino_LSM9DS1.h> // For IMU Stuff
 #include <ArduinoBLE.h> // For BLE Stuff
 #include <SPI.h>
 #include "SdFat.h"
@@ -35,7 +34,7 @@ int curr_time[7];         // [0]: year, [1]: month, [2]: day, [3]: hour, [4]: mi
 #define SD_ERROR 3
 
 /* --------- SD CONSTANTS --------- */
-const uint8_t chipSelect = 10; // UNCOMMENT FOR BOARD 1
+// const uint8_t chipSelect = 10; // UNCOMMENT FOR BOARD 1
 const uint8_t chipSelect = 9;  // UNCOMMENT FOR BOARD 2
 SdFat sd;                      // file system object
 SdFile dataFile;               // log file

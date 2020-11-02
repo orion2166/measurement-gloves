@@ -2,6 +2,7 @@
 #include <ArduinoBLE.h> // For BLE Stuff
 #include <SPI.h>
 #include "SdFat.h"
+#include "RTCLib.h"
 
 /* --------- RTC CONSTANTS --------- */
 RTC_PCF8523 rtc;
@@ -27,7 +28,10 @@ unsigned long last_ble_time; // The last time BLE was accessed
 #define RECORDING_MODE 1 // White Off | Green On
 #define RTC_ERROR 2
 #define SD_ERROR 3
-int currMode; // Global State Variable
+/* --------- SD CONSTANTS --------- */
+const uint8_t chipSelect = 10;
+SdFat sd;        // file system object
+SdFile dataFile; // log file
 /* --------- BLE CONSTANTS --------- */
 BLEService theService("26548447-3cd0-4460-b683-43b332274c2b"); // LEFT HAND
 //BLEService theService("139d09c1-b45a-4c76-b4bd-778dc82a5d67"); // RIGHT HAND
@@ -36,12 +40,12 @@ BLECharacteristic infoCharacteristic("b106d600-3ee1-4a10-8dd7-260074535086", BLE
 BLECharacteristic rtcCharacteristic("81600d69-4d48-4d19-b299-7ef5e3b21f69", BLERead | BLEWrite, 512);
 #define GLOVE_BLE_NAME "Glove 1"
 #define BLE_TIME_INTERVAL_MS 1000
-/* --------- SD CONSTANTS --------- */
-const uint8_t chipSelect = 10;
-String fileName = String();  // current file we will be writing to
+/* --------- General CONSTANTS --------- */
+#define DELAY_PER_LOOP 200
+/* --------- GLOBALS --------- */
+int currMode;                   // Global State Variable
+String fileName = String();     // current file we will be writing to
 unsigned int sessionNumber = 1; // keep track of session number
-SdFat sd; // file system object
-SdFile dataFile;  // log file
 
 /* ------------------------------------------------------------------------------------------------------------------------ */
 /* --------------------------------------------------- HELPER FUNCTIONS --------------------------------------------------- */
@@ -98,9 +102,9 @@ void changeState(int newMode)
     if (currMode == STANDBY_MODE)
     {
         // check if there is an open file and close it
-        if (dataFile) {
-            dataFile.close();
-        }
+        //        if (dataFile) {
+        dataFile.close();
+        //        }
     }
 }
 
@@ -127,7 +131,7 @@ long getVoltageToForce(int pinNum)
 {
     int fsr; // analog reading from fsr resistor divider
     double forceVal;
-    fsr = analogRead(pinNum);  // voltage output mapped 0 - 1023
+    fsr = analogRead(pinNum); // voltage output mapped 0 - 1023
     // Force = 36.1e^(0.00498x) from model
     if (fsr == 0)
     {
@@ -227,50 +231,52 @@ String getDataString()
 /* -------------------------------------------------------------------------------------- */
 
 /* ------------------------------ Create new session file  ------------------------------ */
-void generateSessionFile() {
+void generateSessionFile()
+{
     String message = String();
     DateTime now = rtc.now();
 
-    fileName = String(now.year()) + "_"
-      + String(now.month()) + "_"
-      + String(now.day()) + "_#";
+    fileName = String(now.year()) + "_" + String(now.month()) + "_" + String(now.day()) + "_#";
     fileName += sessionNumber;
     fileName += ".csv";
     message = fileName;
 
     // generate new session file if already exists
-    while (sd.exists(fileName.c_str())) {
-      message += " exists.";
-      sessionNumber++;
-      Serial.println(message);
+    while (sd.exists(fileName.c_str()))
+    {
+        message += " exists.";
+        sessionNumber++;
+        Serial.println(message);
 
-      fileName = String(now.year()) + "_"
-      + String(now.month()) + "_"
-      + String(now.day()) + "_#";
-      fileName += sessionNumber;
+        fileName = String(now.year()) + "_" + String(now.month()) + "_" + String(now.day()) + "_#";
+        fileName += sessionNumber;
     }
 
-    if (!dataFile.open(fileName.c_str(), O_WRONLY | O_CREAT  | O_EXCL)) {
-//      error("File.open");
-      Serial.println("Error opening file");
-      changeState(SD_ERROR);
-      while(1);
+    if (!dataFile.open(fileName.c_str(), O_WRONLY | O_CREAT | O_EXCL))
+    {
+        //      error("File.open");
+        Serial.println("Error opening file");
+        changeState(SD_ERROR);
+        while (1)
+            ;
     }
 
     writeHeader();
 }
 
-void writeHeader() {
+void writeHeader()
+{
     // write data headers
     dataFile.println("RTC,Thumb,Palm");
     Serial.println("Writing headers");
 }
 
-void logData() {
-  // write data to file
-  String Vals = getDataString();
-  dataFile.println(Vals);
-  Serial.println("Writing to file");
+void logData()
+{
+    // write data to file
+    String Vals = getDataString();
+    dataFile.println(Vals);
+    Serial.println("Writing to file");
 }
 
 /* ---------------------------------------------------------------------------------------- */
@@ -354,7 +360,8 @@ void setBatteryIndicator()
 void setup()
 {
     Serial.begin(9600);
-    while(!Serial);
+    while (!Serial)
+        ;
     /* --------- Initialize Standby Mode --------- */
     changeState(STANDBY_MODE);
 
@@ -419,7 +426,9 @@ void setup()
 /* ----------------------------------------------------------------------------------------------------------------- */
 void loop()
 {
-      Serial.println(digitalRead(BUTTON));
+    unsigned long loopStartTime = millis();
+
+    Serial.println(digitalRead(BUTTON));
     /* --------- Change State on Button Press --------- */
     if (digitalRead(BUTTON) == HIGH && currMode != RTC_ERROR && currMode != SD_ERROR)
     {
@@ -461,38 +470,38 @@ void loop()
     setBatteryIndicator();
 
     /* --------- BLE Stuff --------- */
-//    BLEDevice central = BLE.central();
-//    // If there is a connected central device
-//    if (central)
-//    {
-//        // Do this only every second
-//        if (last_ble_time - millis() >= BLE_TIME_INTERVAL_MS)
-//        {
-//            // Check if RTC Was written
-//            if (rtcCharacteristic.written)
-//            {
-//                char rtcString[128];
-//                strncpy(rtcString, (char *)rtcCharacteristic.value(), rtcCharacteristic.valueLength());
-//                if (currMode == RECORDING_MODE)
-//                {
-//                    rtcCharacteristic.writeValue("Can't reset RTC while recording");
-//                }
-//                else
-//                {
-//                    // Reset RTC
-//                }
-//            }
-//            // Send the current status and battery
-//            infoCharacteristic.writeValue(getStatusBatteryString().c_str());
-//            if (currMode == RECORDING_MODE)
-//            {
-//                // Send monitoring data
-//                // monitorCharacteristic(getMonitoringDataString().c_str());
-//            }
-//            last_ble_time = millis();
-//        }
-//    }
+    BLEDevice central = BLE.central();
+    // If there is a connected central device
+    if (central)
+    {
+        // Do this only every second
+        if (last_ble_time - millis() >= BLE_TIME_INTERVAL_MS)
+        {
+            // Check if RTC Was written
+            if (rtcCharacteristic.written)
+            {
+                char rtcString[128];
+                strncpy(rtcString, (char *)rtcCharacteristic.value(), rtcCharacteristic.valueLength());
+                if (currMode == RECORDING_MODE)
+                {
+                    rtcCharacteristic.writeValue("Can't reset RTC while recording");
+                }
+                else
+                {
+                    // Reset RTC
+                }
+            }
+            // Send the current status and battery
+            infoCharacteristic.writeValue(getStatusBatteryString().c_str());
+            if (currMode == RECORDING_MODE)
+            {
+                // Send monitoring data
+                // monitorCharacteristic(getMonitoringDataString().c_str());
+            }
+            last_ble_time = millis();
+        }
+    }
 
-    // Delay Loop
-    delay(200); // 5 readings a second
+    while (millis() - loopStartTime < DELAY_PER_LOOP)
+        ;
 }

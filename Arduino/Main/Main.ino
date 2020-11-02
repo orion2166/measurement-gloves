@@ -6,49 +6,61 @@
 
 /* --------- RTC CONSTANTS --------- */
 RTC_PCF8523 rtc;
-unsigned long rtc_set_ms;    // the time (hr, min, sec) when rtc was set (in milliseconds)
-unsigned long initial_ms;    // ms passed until rtc was set
-int curr_time[7];            // [0]: year, [1]: month, [2]: day, [3]: hour, [4]: min, [5]: sec, [6]: millisec
-unsigned long last_ble_time; // The last time BLE was accessed
+unsigned long rtc_set_ms; // the time (hr, min, sec) when rtc was set (in milliseconds)
+unsigned long initial_ms; // ms passed until rtc was set
+int curr_time[7];         // [0]: year, [1]: month, [2]: day, [3]: hour, [4]: min, [5]: sec, [6]: millisec
+
 /* --------- FORCE SENSOR CONSTANTS --------- */
 #define THUMB A0
 #define PALM A1
+
 /* --------- BATTERY CONSTANTS --------- */
 #define BATTERY A4
 #define RGB_RED A2
 #define RGB_GREEN A3
 #define RGB_BLUE A5
+
 /* --------- STATUS LED CONSTANTS --------- */
 #define STATUS_LED_WHITE D4
 #define STATUS_LED_GREEN D2
+
 /* --------- BUTTON CONSTANTS --------- */
 // #define BUTTON D9  // UNCOMMENT FOR BOARD 1
 #define BUTTON D5 // UNCOMMENT FOR BOARD 2
+
 /* --------- STATE CONSTANTS --------- */
 #define STANDBY_MODE 0   // White On | Green Off
 #define RECORDING_MODE 1 // White Off | Green On
 #define RTC_ERROR 2
 #define SD_ERROR 3
+
 /* --------- SD CONSTANTS --------- */
 const uint8_t chipSelect = 10; // UNCOMMENT FOR BOARD 1
-const uint8_t chipSelect = 9; // UNCOMMENT FOR BOARD 2
-SdFat sd;        // file system object
-SdFile dataFile; // log file
+const uint8_t chipSelect = 9;  // UNCOMMENT FOR BOARD 2
+SdFat sd;                      // file system object
+SdFile dataFile;               // log file
+
 /* --------- BLE CONSTANTS --------- */
-BLEService theService("26548447-3cd0-4460-b683-43b332274c2b"); // LEFT HAND
-//BLEService theService("139d09c1-b45a-4c76-b4bd-778dc82a5d67"); // RIGHT HAND
+BLEService theService("26548447-3cd0-4460-b683-43b332274c2b"); // UNCOMMENT FOR LEFT GLOVE
+//BLEService theService("139d09c1-b45a-4c76-b4bd-778dc82a5d67"); // UNCOMMENT FOR RIGHT GLOVE
 BLECharacteristic monitorCharacteristic("43b513cf-08aa-4bd9-bc58-3f626a4248d8", BLERead | BLENotify, 512);
 BLECharacteristic infoCharacteristic("b106d600-3ee1-4a10-8dd7-260074535086", BLERead | BLENotify, 512);
 BLECharacteristic rtcCharacteristic("81600d69-4d48-4d19-b299-7ef5e3b21f69", BLERead | BLEWrite, 512);
 #define GLOVE_BLE_NAME "Glove 1"
 #define BLE_TIME_INTERVAL_MS 1000
+
 /* --------- General CONSTANTS --------- */
 #define DELAY_PER_LOOP 200
-/* --------- GLOBALS --------- */
+#define GLOVE_HAND "Left" // UNCOMMENT FOR LEFT GLOVE
+// #define GLOVE_HAND "Right" // UNCOMMENT FOR RIGHT GLOVE
+
+/* -------------- GLOBALS -------------- */
 int currMode;                   // Global State Variable
-String fileName = String();     // current file we will be writing to
-unsigned int sessionNumber = 1; // keep track of session number
-unsigned int numReadings;
+String fileName = String();     // Current file we will be writing to
+unsigned int sessionNumber = 1; // Keep track of session number
+unsigned int numReadings;       // Keep track of number of readings in each recording session
+unsigned long last_ble_time;    // The last time BLE was accessed
+
 /* ------------------------------------------------------------------------------------------------------------------------ */
 /* --------------------------------------------------- HELPER FUNCTIONS --------------------------------------------------- */
 /* ------------------------------------------------------------------------------------------------------------------------ */
@@ -57,7 +69,10 @@ unsigned int numReadings;
 /* ------------------------------------ STATE MANAGEMENT ------------------------------------ */
 /* ------------------------------------------------------------------------------------------ */
 
-/* ------------------------------ Status Lights Handler ------------------------------ */
+
+//
+// Changes the status lights based on the current status mode
+//
 void changeStatusLights()
 {
     switch (currMode)
@@ -87,7 +102,10 @@ void changeStatusLights()
     }
 }
 
-/* ------------------------------ Glove State Handler ------------------------------ */
+//
+// Changes the status lights based on the current status mode
+// newMode: new status mode code
+//
 void changeState(int newMode)
 {
     Serial.print("Mode = ");
@@ -109,7 +127,10 @@ void changeState(int newMode)
     }
 }
 
-/* ------------------------------ Glove State Intermission ------------------------------ */
+//
+// Gives a 3 second delay between button press and state change
+// Blinks status LEDs to indicate intermission
+//
 void buttonIntermission()
 {
     for (int i = 0; i < 3; i++)
@@ -127,7 +148,11 @@ void buttonIntermission()
 /* ------------------------------------ DATA COLLECTION ------------------------------------ */
 /* ----------------------------------------------------------------------------------------- */
 
-/* ------------------------------ Voltage to Force Model ----------------------------------- */
+//
+// Reads voltage from given analog pin and converts voltage to force (in grams) using model
+// pinNum: analog pin to read voltage from
+// returns: force in grams
+//
 long getVoltageToForce(int pinNum)
 {
     int fsr; // analog reading from fsr resistor divider
@@ -147,7 +172,9 @@ long getVoltageToForce(int pinNum)
     return forceVal;
 }
 
-/* ------------------------------ Initialize Session Time ----------------------------------- */
+//
+// Initializes the starting session time using RTC and stored in rtc_set_ms
+//
 void initSessionTime()
 {
     // check RTC for error
@@ -171,7 +198,9 @@ void initSessionTime()
     initial_ms = millis();
 }
 
-/* ------------------------------ Convert Time of Day in MS Count to Military Time ----------------------------------- */
+//
+// Convert Time of Day in MS Count to Military Time
+//
 void getTimeFromMillis(unsigned long ms)
 {
     // get total ms, sec, min, & hours from ms
@@ -193,8 +222,10 @@ void getTimeFromMillis(unsigned long ms)
     curr_time[6] = currMs;
 }
 
-/* ------------------------------ Set Current Time ----------------------------------- */
-void getTime()
+//
+// Gets the current time and updates the time stored in curr_time
+//
+void updateCurrentTime()
 {
     // check RTC for error
     if (!rtc.begin() || !rtc.initialized() || rtc.lostPower())
@@ -214,15 +245,19 @@ void getTime()
     getTimeFromMillis(curr_ms);
 }
 
-/* ------------------------------ Collect RTC + Force Values ------------------------------ */
+//
+// Reads RTC, and force values and generates a data string to write to CSV file
+// returns: String in format: "<Time in ISO>, <THUMB force in g>, <PALM force in g>, <HAND (Left or Right)>"
+//
 String getDataString()
 {
     String toReturn = String(curr_time[0]) + ":" + String(curr_time[1]) + ":" + String(curr_time[2]) + ":" + String(curr_time[3]) + ":" // hour
-                      + String(curr_time[4]) + ":"  // min
-                      + String(curr_time[5]) + ":"  // sec
-                      + String(curr_time[6]) + ","; // ms
+                      + String(curr_time[4]) + ":"                                                                                      // min
+                      + String(curr_time[5]) + ":"                                                                                      // sec
+                      + String(curr_time[6]) + ",";                                                                                     // ms
     toReturn += String(getVoltageToForce(THUMB)) + ",";
-    toReturn += String(getVoltageToForce(PALM));
+    toReturn += String(getVoltageToForce(PALM)) + ",";
+    toReturn += GLOVE_HAND;
     return toReturn;
 }
 
@@ -230,28 +265,28 @@ String getDataString()
 /* ------------------------------------ DATA STORAGE ------------------------------------ */
 /* -------------------------------------------------------------------------------------- */
 
-/* ------------------------------ Create new session file  ------------------------------ */
+//
+// Creates a new session file based on RTC time and session number
+//
 void generateSessionFile()
 {
-    String message = String();
+    // Construct the filename
     DateTime now = rtc.now();
-
     fileName = String(now.year()) + "_" + String(now.month()) + "_" + String(now.day()) + "_#";
     fileName += sessionNumber;
     fileName += ".csv";
-    message = fileName;
 
-    // generate new session file if already exists
+    // Keep generating new session file if already exists
     while (sd.exists(fileName.c_str()))
     {
-        message += " exists.";
         sessionNumber++;
-        Serial.println(message);
+        Serial.println(fileName + " exists");
 
         fileName = String(now.year()) + "_" + String(now.month()) + "_" + String(now.day()) + "_#";
         fileName += sessionNumber;
     }
 
+    // Try to open file
     if (!dataFile.open(fileName.c_str(), O_WRONLY | O_CREAT | O_EXCL))
     {
         //      error("File.open");
@@ -259,21 +294,27 @@ void generateSessionFile()
         changeState(SD_ERROR);
     }
 
-    writeHeader();
+    writeHeaderToFile();
 }
 
-void writeHeader()
+//
+// Writes column headers to the file
+//
+void writeHeaderToFile()
 {
     // write data headers
-    dataFile.println("RTC,Thumb,Palm");
+    dataFile.println("RTC,Thumb,Palm,Hand");
     Serial.println("Writing headers");
 }
 
-void logData()
+//
+// Writes a data string to the CSV file
+//
+void writeDataToFile()
 {
-    // write data to file
-    String Vals = getDataString();
-    dataFile.println(Vals);
+    // Write data to file
+    String toWrite = getDataString();
+    dataFile.println(toWrite);
     Serial.println("Writing to file");
 }
 
@@ -281,29 +322,30 @@ void logData()
 /* ------------------------------------ BATTERY STATUS ------------------------------------ */
 /* ---------------------------------------------------------------------------------------- */
 
-String getStatusBatteryString()
+//
+// Generate a status and battery JSON string to be sent over BLE
+// returns: string with status and battery in the format: '{ "state": <state>, "battery": <battery> }'
+String getStatusBatteryJSONString()
 {
-    // Need to add battery reading
+    // TODO: Need to add battery reading
     return "{\"state\":" + String(currMode) + "}";
 }
 
-///* ------------------------------ Set Battery LED Color ------------------------------ */
-//void RGB_color(int red_light_value, int green_light_value, int blue_light_value)
-//{
-//    analogWrite(RGB_RED, red_light_value);
-//    analogWrite(RGB_GREEN, green_light_value);
-//    analogWrite(RGB_BLUE, blue_light_value);
-//}
 
-/* ------------------------------ Set Battery LED Color ------------------------------ */
+//
+// Set RGB LED with given red and green values
+// red_light_value: value to write to R value of RGB LED
+// green_light_value: value to write to G value of RGB LED
+//
 void RGB_color(int red_light_value, int green_light_value)
 {
     analogWrite(RGB_RED, red_light_value);
     analogWrite(RGB_GREEN, green_light_value);
 }
 
-
-/* ------------------------------ Calculate & Set LED Color ------------------------------ */
+//
+// Read the battery value and set battery LED accordingly
+//
 void setBatteryIndicator()
 {
 
@@ -314,19 +356,18 @@ void setBatteryIndicator()
     float V = sensorValue * (3.3 / 1023.0);
 
     // set battery LEDs
-    RGB_color(0,0);
-//    if (V >= 2.65)
-//    {
-//        RGB_color(255, 0);
-//    }
-//    if (V < 2.65 && V >= 2.5)
-//    {
-//        RGB_color(0, 0);
-//    }
-//    if (V < 2.5)
-//    {
-//        RGB_color(0, 255);
-//    }
+    if (V >= 2.65)
+    {
+        RGB_color(255, 0);
+    }
+    if (V < 2.65 && V >= 2.5)
+    {
+        RGB_color(0, 0);
+    }
+    if (V < 2.5)
+    {
+        RGB_color(0, 255);
+    }
 }
 
 /* ------------------------------------------------------------------------------------------------------------- */
@@ -408,13 +449,13 @@ void loop()
     {
         ++numReadings;
         // get RTC time + force sensor values
-        getTime();
+        updateCurrentTime();
         String vals = getDataString(); // Get Values
         Serial.println(vals);
 
-        // Write Vals to SD
+        // Write toWrite to SD
         // Within function: check for SD card, write to sd card
-        logData();
+        writeDataToFile();
         // Force data to SD and update the directory entry to avoid data loss.
         if (!dataFile.sync() || dataFile.getWriteError())
         {
@@ -445,19 +486,22 @@ void loop()
                 }
                 else
                 {
-                    // Reset RTC
+                    // TODO: Reset RTC
                 }
             }
             // Send the current status and battery
-            infoCharacteristic.writeValue(getStatusBatteryString().c_str());
+            infoCharacteristic.writeValue(getStatusBatteryJSONString().c_str());
+
             if (currMode == RECORDING_MODE)
             {
-                // Send monitoring data
-                // monitorCharacteristic(getMonitoringDataString().c_str());
+                // TODO: Send monitoring data
+                // TODO: monitorCharacteristic(getMonitoringDataString().c_str());
             }
+
             last_ble_time = millis();
         }
     }
 
-    while (millis() - loopStartTime < DELAY_PER_LOOP);
+    /* --------- DELAY --------- */
+    while (millis() - loopStartTime < DELAY_PER_LOOP); // takes time of exec into account
 }

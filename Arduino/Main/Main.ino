@@ -478,7 +478,7 @@ void loop()
         if (last_ble_time - millis() >= BLE_TIME_INTERVAL_MS)
         {
             // Check if RTC Was written
-            if (rtcCharacteristic.written)
+            if (rtcCharacteristic.written())
             {
                 char rtcString[128];
                 strncpy(rtcString, (char *)rtcCharacteristic.value(), rtcCharacteristic.valueLength());

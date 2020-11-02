@@ -22,7 +22,7 @@ unsigned long last_ble_time; // The last time BLE was accessed
 #define STATUS_LED_WHITE D4
 #define STATUS_LED_GREEN D2
 /* --------- BUTTON CONSTANTS --------- */
-#define BUTTON D8
+#define BUTTON D9
 /* --------- STATE CONSTANTS --------- */
 #define STANDBY_MODE 0   // White On | Green Off
 #define RECORDING_MODE 1 // White Off | Green On
@@ -46,6 +46,8 @@ BLECharacteristic rtcCharacteristic("81600d69-4d48-4d19-b299-7ef5e3b21f69", BLER
 int currMode;                   // Global State Variable
 String fileName = String();     // current file we will be writing to
 unsigned int sessionNumber = 1; // keep track of session number
+
+int count;
 
 /* ------------------------------------------------------------------------------------------------------------------------ */
 /* --------------------------------------------------- HELPER FUNCTIONS --------------------------------------------------- */
@@ -96,11 +98,13 @@ void changeState(int newMode)
 
     if (currMode == RECORDING_MODE)
     {
+        count = 0;
         initSessionTime();
         generateSessionFile();
     }
     if (currMode == STANDBY_MODE)
     {
+        Serial.println(count);
         // check if there is an open file and close it
         //        if (dataFile) {
         dataFile.close();
@@ -219,8 +223,7 @@ String getDataString()
     String toReturn = "{\"Time\":" + String(curr_time[0]) + ":" + String(curr_time[1]) + ":" + String(curr_time[2]) + ":" + String(curr_time[3]) + ":" //hour
                       + String(curr_time[4]) + ":"                                                                                                     //min
                       + String(curr_time[5]) + ":"                                                                                                     //sec
-                      + String(curr_time[6]) + ":"                                                                                                     //millisec
-                      + String() + ":" + ",";
+                      + String(curr_time[6]) + ",";
     toReturn += "\"THUMB\":" + String(getVoltageToForce(THUMB)) + ",";
     toReturn += "\"PALM\":" + String(getVoltageToForce(PALM)) + "}";
     return toReturn;
@@ -257,8 +260,6 @@ void generateSessionFile()
         //      error("File.open");
         Serial.println("Error opening file");
         changeState(SD_ERROR);
-        while (1)
-            ;
     }
 
     writeHeader();
@@ -283,11 +284,11 @@ void logData()
 /* ------------------------------------ BATTERY STATUS ------------------------------------ */
 /* ---------------------------------------------------------------------------------------- */
 
-//String getStatusBatteryString()
-//{
-//    // Need to add battery reading
-//    return "{\"state\":" + String(currMode) + "}";
-//}
+String getStatusBatteryString()
+{
+    // Need to add battery reading
+    return "{\"state\":" + String(currMode) + "}";
+}
 
 ///* ------------------------------ Set Battery LED Color ------------------------------ */
 //void RGB_color(int red_light_value, int green_light_value, int blue_light_value)
@@ -304,30 +305,6 @@ void RGB_color(int red_light_value, int green_light_value)
     analogWrite(RGB_GREEN, green_light_value);
 }
 
-///* ------------------------------ Calculate & Set LED Color ------------------------------ */
-//void setBatteryIndicator()
-//{
-//
-//    // read analog voltage from battery
-//    int sensorValue = analogRead(BATTERY);
-//
-//    // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
-//    float V = sensorValue * (3.3 / 1023.0);
-//
-//    // set battery LEDs
-//    if (V >= 2.65)
-//    {
-//        RGB_color(255, 0, 255);
-//    }
-//    if (V < 2.65 && V >= 2.5)
-//    {
-//        RGB_color(0, 0, 255);
-//    }
-//    if (V < 2.5)
-//    {
-//        RGB_color(0, 255, 255);
-//    }
-//}
 
 /* ------------------------------ Calculate & Set LED Color ------------------------------ */
 void setBatteryIndicator()
@@ -340,18 +317,19 @@ void setBatteryIndicator()
     float V = sensorValue * (3.3 / 1023.0);
 
     // set battery LEDs
-    if (V >= 2.65)
-    {
-        RGB_color(255, 0);
-    }
-    if (V < 2.65 && V >= 2.5)
-    {
-        RGB_color(0, 0);
-    }
-    if (V < 2.5)
-    {
-        RGB_color(0, 255);
-    }
+    RGB_color(0,0);
+//    if (V >= 2.65)
+//    {
+//        RGB_color(255, 0);
+//    }
+//    if (V < 2.65 && V >= 2.5)
+//    {
+//        RGB_color(0, 0);
+//    }
+//    if (V < 2.5)
+//    {
+//        RGB_color(0, 255);
+//    }
 }
 
 /* ------------------------------------------------------------------------------------------------------------- */
@@ -378,29 +356,11 @@ void setup()
         Serial.println("RTC is NOT initialized, let's set the time!");
     }
 
-    /* NEED FOR RTC RESET
-
-    // When time needs to be set on a new device, or after a power loss, the
-    // following line sets the RTC to the date & time this sketch was compiled
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-    // This line sets the RTC with an explicit date & time, for example to set
-    // January 21, 2014 at 3am you would call:
-    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
-    //
-    // Note: allow 2 seconds after inserting battery or applying external power
-    // without battery before calling adjust(). This gives the PCF8523's
-    // crystal oscillator time to stabilize. If you call adjust() very quickly
-    // after the RTC is powered, lostPower() may still return true.
-
-  */
-
     /* --------- Initialize BLE --------- */
     // begin BLE
     if (!BLE.begin())
     {
         Serial.println("starting BLE failed");
-        while (1)
-            ;
     }
 
     BLE.setLocalName(GLOVE_BLE_NAME);
@@ -428,7 +388,6 @@ void loop()
 {
     unsigned long loopStartTime = millis();
 
-    Serial.println(digitalRead(BUTTON));
     /* --------- Change State on Button Press --------- */
     if (digitalRead(BUTTON) == HIGH && currMode != RTC_ERROR && currMode != SD_ERROR)
     {
@@ -450,6 +409,7 @@ void loop()
     /* --------- Collect Values if in Recording Mode --------- */
     if (currMode == RECORDING_MODE)
     {
+        count++;
         // get RTC time + force sensor values
         getTime();
         String vals = getDataString(); // Get Values
@@ -502,6 +462,5 @@ void loop()
         }
     }
 
-    while (millis() - loopStartTime < DELAY_PER_LOOP)
-        ;
+    while (millis() - loopStartTime < DELAY_PER_LOOP);
 }

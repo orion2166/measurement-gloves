@@ -13,7 +13,7 @@ bool toggleVal = false;
 double leftThumbH = 0; double leftThumbW = 0;
 double leftTopH = 0; double leftTopW = 0;
 double leftBottomH = 0; double leftBottomW = 0;
-
+double radVal = 0; int colVal = 100;
 class _LeftHand extends State<LeftHand> {
 
   toggleValSwitch(bool newVal){
@@ -30,17 +30,22 @@ class _LeftHand extends State<LeftHand> {
   /*update battery percentage*/
   // state variable
   double forceVal = 0;
+
   // change circle size when button pressed
   _changeSize() {
     setState(() {
       if (forceVal == 0) {
-        forceVal = 3;
-      } else if (forceVal == 3) {
         forceVal = 20;
+        convertRadIntensity(forceVal);
       } else if (forceVal == 20) {
-        forceVal = 35;
+        forceVal = 50;
+        convertRadIntensity(forceVal);
+      } else if (forceVal == 50) {
+        forceVal = 100;
+        convertRadIntensity(forceVal);
       } else {
         forceVal = 0;
+        convertRadIntensity(forceVal);
       }
     });
   }
@@ -138,7 +143,8 @@ class _LeftHand extends State<LeftHand> {
                   height: 400,
                   child: Circle(
                     center: {"x": leftThumbW, "y": leftThumbH},
-                    radius: forceVal,
+                    radius: radVal,
+                    intensity: colVal,
                     mode: toggleVal,
                   ),
                 ),
@@ -147,7 +153,8 @@ class _LeftHand extends State<LeftHand> {
                   height: 400,
                   child: Circle(
                     center: {"x": leftTopW, "y": leftTopH},
-                    radius: forceVal,
+                    radius: radVal,
+                    intensity: colVal,
                     mode: toggleVal,
                   ),
                 ),
@@ -156,7 +163,8 @@ class _LeftHand extends State<LeftHand> {
                   height: 400,
                   child: Circle(
                     center: {"x": leftBottomW, "y": leftBottomH},
-                    radius: forceVal,
+                    radius: radVal,
+                    intensity: colVal,
                     mode: toggleVal,
                   ),
                 ),
@@ -205,15 +213,15 @@ class _LeftHand extends State<LeftHand> {
     );
   }
 }
+void convertRadIntensity(double forceVal) {
+  /*Convert Force Value to Radius and Intensity*/
+  //Assume Force Value Range is 0 - 100
+  //Radius Range is 3,4,5,..., 35
+  //Intensity Range is 100, 200, ..., 900
+  radVal = (forceVal - 0) * 32/100 + 3;
+  double intens = (forceVal - 0) * 800/100 + 100;
+  colVal = ((intens.toInt() + 99) ~/ 100 ) * 100; //rounds to nearest hundredth
 
-/*Convert Force Value to Radius and Intensity*/
-//Assume Force Value Range is 0 - 100
-//Radius Range is 3 - 35
-//Intensity Range is 100 - 900
-class convertRadIntensity {
-  final double forceValue;
-  convertRadIntensity(this.forceValue);
-
-  
 }
+
 

@@ -126,8 +126,8 @@ void changeState(int newMode)
 
 void changeState_Test()
 {
-    Serial.print("changeState() Test: ");
-
+    Serial.println("void changeState(int newMode)");
+    Serial.println("Input: int newMode = " + String(RECORDING_MODE));
     unsigned long testTime = millis();
 
     changeState(RECORDING_MODE);
@@ -159,7 +159,7 @@ void buttonIntermission()
 void buttonIntermission_Test()
 {
 
-    Serial.print("buttonIntermission() Test: ");
+    Serial.println("void buttonIntermission()");
 
     unsigned long startTime = millis();
     buttonIntermission();
@@ -202,8 +202,9 @@ long getVoltageToForce(int analogReadVal)
 
 long getVoltageToForce_Test()
 {
-    Serial.print("getVoltageToForce() Test: ");
-
+    Serial.println("long getVoltageToForce(int analogReadVal)");
+    Serial.println("Input: int analogReadVal = 600");
+    Serial.println("Expected Output: (long) > 690 AND < 720");
     long testForce = getVoltageToForce(600);
     if ((testForce > 690) && (testForce < 720))
     {
@@ -240,7 +241,7 @@ void initSessionTime()
 
 void initSessionTime_Test()
 {
-    Serial.print("initSessionTime() Test: ");
+    Serial.println("void initSessionTime()");
 
     rtc_set_ms = millis();
     initial_ms = millis();
@@ -284,7 +285,8 @@ void getTimeFromMillis(unsigned long ms)
 
 void getTimeFromMillis_Test()
 {
-    Serial.print("getTimeFromMillis() Test: ");
+    Serial.println ("void getTimeFromMillis(unsigned long ms)");
+    Serial.println ("Input: unsigned long ms = 66630030");
 
     unsigned long testTime = 66630030; // 6:30:30:30 PM in ms
 
@@ -337,8 +339,8 @@ String getDataString()
 
 void getDataString_Test()
 {
-    Serial.print("getDataString() Test: ");
-
+    Serial.println("String getDataString()");
+    Serial.println("Expected Output: String with length > 0");
     String dataString = getDataString();
 
     if (dataString.length() > 0)
@@ -385,7 +387,7 @@ void generateSessionFile()
 
 void generateSessionFile_Test()
 {
-    Serial.print("generateSessionFile() Test: ");
+    Serial.println("void generateSessionFile()");
     generateSessionFile();
      // Write some junk to file and close it
     dataFile.println("test");
@@ -410,8 +412,7 @@ void setup()
     Serial.begin(9600);
 
 #ifndef ESP8266
-    while (!Serial)
-        ; // wait for serial port to connect. Needed for native USB
+    while (!Serial); // wait for serial port to connect. Needed for native USB
 #endif
 
     /* --------- Initialize Standy Mode --------- */
@@ -466,8 +467,9 @@ void loop()
 {
     Serial.println();
 
-    // setup_test()
-    Serial.print("setBatteryIndicator() Test: ");
+    Serial.println("---------------------------");
+    Serial.print("Testing: ");
+    Serial.println("void setup()");
     if (currMode == STANDBY_MODE)
     {
         Serial.println("Passed");
@@ -478,26 +480,40 @@ void loop()
     }
     Serial.println();
 
+    Serial.println("---------------------------");
+    Serial.print("Testing: ");
     changeState_Test();
     Serial.println();
 
+    Serial.println("---------------------------");
+    Serial.print("Testing: ");
     buttonIntermission_Test();
     Serial.println();
 
+    Serial.println("---------------------------");
+    Serial.print("Testing: ");
     initSessionTime_Test();
     Serial.println();
-
+    Serial.println("---------------------------");
+    Serial.print("Testing: ");
     getTimeFromMillis_Test();
     Serial.println();
 
+    Serial.println("---------------------------");
+    Serial.print("Testing: ");
     getDataString_Test();
     Serial.println();
 
+    Serial.println("---------------------------");
+    Serial.print("Testing: ");
     getVoltageToForce_Test();
     Serial.println();
 
+    Serial.println("---------------------------");
+    Serial.print("Testing: ");
     generateSessionFile_Test();
     Serial.println();
+    Serial.println("---------------------------");
 
     Serial.println("Tests Completed");
     while (1);

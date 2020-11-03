@@ -3,7 +3,7 @@
 #include "SdFat.h"
 #include "RTClib.h"
 
-// #define LEFT_HAND 1 // Comment for right hand
+//#define LEFT_HAND 1 // Comment for right hand
 
 /* --------- RTC CONSTANTS --------- */
 RTC_PCF8523 rtc;
@@ -388,8 +388,10 @@ void setBatteryIndicator()
 void setup()
 {
     Serial.begin(9600);
-    while (!Serial)
-        ;
+    #ifndef ESP8266
+    while (!Serial); // wait for serial port to connect. Needed for native USB
+    #endif
+
     /* --------- Initialize Standby Mode --------- */
     changeState(STANDBY_MODE);
 

@@ -337,7 +337,7 @@ String getDataString()
 
 void getDataString_Test()
 {
-    Serial.print("getDataString_Test() Test: ");
+    Serial.print("getDataString() Test: ");
 
     String dataString = getDataString();
 
@@ -381,21 +381,17 @@ void generateSessionFile()
         Serial.println("Error opening file");
         changeState(SD_ERROR);
     }
-
 }
 
 void generateSessionFile_Test()
 {
-    Serial.print("getDataString_Test() Test: ");
+    Serial.print("generateSessionFile() Test: ");
     generateSessionFile();
+     // Write some junk to file and close it
+    dataFile.println("test");
     dataFile.close();
 
-    // Construct the filename
-    DateTime now = rtc.now();
-    fileName = String(now.year()) + "_" + String(now.month()) + "_" + String(now.day()) + "_#";
-    fileName += sessionNumber;
-    fileName += ".csv";
-
+    // Make sure file exists
     if(sd.exists(fileName.c_str()))
     {
         Serial.println("Passed");
@@ -480,7 +476,7 @@ void loop()
     {
         Serial.println("Failed");
     }
-        Serial.println();
+    Serial.println();
 
     changeState_Test();
     Serial.println();

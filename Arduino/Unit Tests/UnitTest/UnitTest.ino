@@ -1,40 +1,78 @@
-//#include <Arduino_LSM9DS1.h> // For IMU Stuff
 #include <ArduinoBLE.h> // For BLE Stuff
+#include <SPI.h>
+#include "SdFat.h"
 #include "RTClib.h"
+
+// #define LEFT_HAND 1 // Comment for right hand
 
 /* --------- RTC CONSTANTS --------- */
 RTC_PCF8523 rtc;
-unsigned long rtc_set_ms;    // the time (hr, min, sec) when rtc was set (in milliseconds)
-unsigned long initial_ms;    // ms passed until rtc was set
-int curr_time[7];            // [0]: year, [1]: month, [2]: day, [3]: hour, [4]: min, [5]: sec, [6]: millisec
-unsigned long last_ble_time; // The last time BLE was accessed
+unsigned long rtc_set_ms; // the time (hr, min, sec) when rtc was set (in milliseconds)
+unsigned long initial_ms; // ms passed until rtc was set
+int curr_time[7];         // [0]: year, [1]: month, [2]: day, [3]: hour, [4]: min, [5]: sec, [6]: millisec
+
 /* --------- FORCE SENSOR CONSTANTS --------- */
 #define THUMB A0
 #define PALM A1
+
 /* --------- BATTERY CONSTANTS --------- */
 #define BATTERY A4
-#define RGB_RED A7
-#define RGB_GREEN A6
+#define RGB_RED A2
+#define RGB_GREEN A3
 #define RGB_BLUE A5
-/* --------- STTUS LED CONSTANTS --------- */
-#define STATUS_LED_WHITE D2
-#define STATUS_LED_GREEN D3
+
+/* --------- STATUS LED CONSTANTS --------- */
+#define STATUS_LED_WHITE D4
+#define STATUS_LED_GREEN D2
+
 /* --------- BUTTON CONSTANTS --------- */
-#define BUTTON D4
+#ifdef LEFT_HAND
+#define BUTTON D9
+#else
+#define BUTTON D5
+#endif
+
 /* --------- STATE CONSTANTS --------- */
 #define STANDBY_MODE 0   // White On | Green Off
 #define RECORDING_MODE 1 // White Off | Green On
 #define RTC_ERROR 2
 #define SD_ERROR 3
-int currMode; // Global State Variable
+
+/* --------- SD CONSTANTS --------- */
+#ifdef LEFT_HAND
+const uint8_t chipSelect = 10;
+#else
+const uint8_t chipSelect = 9;
+#endif
+SdFat sd;        // file system object
+SdFile dataFile; // log file
+
 /* --------- BLE CONSTANTS --------- */
-BLEService theService("26548447-3cd0-4460-b683-43b332274c2b"); // LEFT HAND
-//BLEService theService("139d09c1-b45a-4c76-b4bd-778dc82a5d67"); // RIGHT HAND
+#define GLOVE_BLE_NAME "Glove 1"
+#define BLE_TIME_INTERVAL_MS 1000
+#ifdef LEFT_HAND
+BLEService theService("26548447-3cd0-4460-b683-43b332274c2b");
+#else
+BLEService theService("139d09c1-b45a-4c76-b4bd-778dc82a5d67");
+#endif
 BLECharacteristic monitorCharacteristic("43b513cf-08aa-4bd9-bc58-3f626a4248d8", BLERead | BLENotify, 512);
 BLECharacteristic infoCharacteristic("b106d600-3ee1-4a10-8dd7-260074535086", BLERead | BLENotify, 512);
 BLECharacteristic rtcCharacteristic("81600d69-4d48-4d19-b299-7ef5e3b21f69", BLERead | BLEWrite, 512);
-#define GLOVE_BLE_NAME "Glove 1"
-#define BLE_TIME_INTERVAL_MS 1000
+
+/* --------- General CONSTANTS --------- */
+#define DELAY_PER_LOOP 200
+#ifdef LEFT_HAND
+#define GLOVE_HAND "Left"
+#else
+#define GLOVE_HAND "Right"
+#endif
+
+/* -------------- GLOBALS -------------- */
+int currMode;                   // Global State Variable
+String fileName = String();     // Current file we will be writing to
+unsigned int sessionNumber = 1; // Keep track of session number
+unsigned int numReadings;       // Keep track of number of readings in each recording session
+unsigned long last_ble_time;    // The last time BLE was accessed
 
 /* ------------------------------------------------------------------------------------------------------------------------ */
 /* --------------------------------------------------- HELPER FUNCTIONS --------------------------------------------------- */
@@ -272,7 +310,7 @@ void getTime()
         changeState(RTC_ERROR);
         return;
     }
-    
+
     DateTime currNow = rtc.now();
     // set global current time variable
     curr_time[0] = currNow.year();
@@ -313,6 +351,61 @@ void getDataString_Test()
     }
 }
 
+/* -------------------------------------------------------------------------------------- */
+/* ------------------------------------ DATA STORAGE ------------------------------------ */
+/* -------------------------------------------------------------------------------------- */
+
+/* ------------------------------ Generates and stores session file on SD Card ------------------------------ */
+void generateSessionFile()
+{
+    // Construct the filename
+    DateTime now = rtc.now();
+    fileName = String(now.year()) + "_" + String(now.month()) + "_" + String(now.day()) + "_#";
+    fileName += sessionNumber;
+    fileName += ".csv";
+
+    // Keep generating new session file if already exists
+    while (sd.exists(fileName.c_str()))
+    {
+        sessionNumber++;
+        // Serial.println(fileName + " exists");
+
+        fileName = String(now.year()) + "_" + String(now.month()) + "_" + String(now.day()) + "_#";
+        fileName += sessionNumber;
+    }
+
+    // Try to open file
+    if (!dataFile.open(fileName.c_str(), O_WRONLY | O_CREAT | O_EXCL))
+    {
+        //      error("File.open");
+        Serial.println("Error opening file");
+        changeState(SD_ERROR);
+    }
+
+}
+
+void generateSessionFile_Test()
+{
+    Serial.print("getDataString_Test() Test: ");
+    generateSessionFile();
+    dataFile.close();
+
+    // Construct the filename
+    DateTime now = rtc.now();
+    fileName = String(now.year()) + "_" + String(now.month()) + "_" + String(now.day()) + "_#";
+    fileName += sessionNumber;
+    fileName += ".csv";
+
+    if(sd.exists(fileName.c_str()))
+    {
+        Serial.println("Passed");
+    }
+    else
+    {
+        Serial.println("Failed");
+    }
+}
+
 /* ------------------------------------------------------------------------------------------------------------- */
 /* --------------------------------------------------- SETUP --------------------------------------------------- */
 /* ------------------------------------------------------------------------------------------------------------- */
@@ -342,11 +435,19 @@ void setup()
         Serial.println("RTC is NOT initialized, let's set the time!");
     }
 
+    /* --------- Initialize SD card --------- */
+    // call SD.begin once in setup
+    if (!sd.begin(chipSelect, SD_SCK_MHZ(15)))
+    {
+        Serial.println("SD Card failed");
+        changeState(SD_ERROR);
+    }
+
     /* --------- Initialize BLE --------- */
     // begin BLE
     if (!BLE.begin())
     {
-        Serial.println("starting BLE failed");
+        Serial.println("Starting BLE failed");
         while (1)
             ;
     }
@@ -368,7 +469,7 @@ void setup()
 void loop()
 {
     Serial.println();
-    
+
     // setup_test()
     Serial.print("setBatteryIndicator() Test: ");
     if (currMode == STANDBY_MODE)
@@ -399,7 +500,10 @@ void loop()
     getVoltageToForce_Test();
     Serial.println();
 
+    generateSessionFile_Test();
+    Serial.println();
+
     Serial.println("Tests Completed");
     while (1);
-    
+
 }

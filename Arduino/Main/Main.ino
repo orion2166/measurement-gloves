@@ -3,7 +3,7 @@
 #include "SdFat.h"
 #include "RTClib.h"
 
-#define LEFT_HAND 1 // Comment for right hand
+// #define LEFT_HAND 1 // Comment for right hand
 
 /* --------- RTC CONSTANTS --------- */
 RTC_PCF8523 rtc;
@@ -44,8 +44,8 @@ const uint8_t chipSelect = 10;
 #else
 const uint8_t chipSelect = 9;
 #endif
-SdFat sd;                     // file system object
-SdFile dataFile;              // log file
+SdFat sd;        // file system object
+SdFile dataFile; // log file
 
 /* --------- BLE CONSTANTS --------- */
 #define GLOVE_BLE_NAME "Glove 1"
@@ -178,6 +178,7 @@ long getVoltageToForce(int pinNum)
     }
     else
     {
+        // Apply model
         forceVal = 0.00498 * fsr;
         forceVal = 36.1 * (exp(forceVal));
     }

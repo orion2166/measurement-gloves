@@ -48,7 +48,11 @@ SdFat sd;        // file system object
 SdFile dataFile; // log file
 
 /* --------- BLE CONSTANTS --------- */
-#define GLOVE_BLE_NAME "Glove 1"
+#ifdef LEFT_HAND
+#define GLOVE_BLE_NAME "Glove 1 (Left)"
+#else
+#define GLOVE_BLE_NAME "Glove 1 (Right)"
+#endif
 #define BLE_TIME_INTERVAL_MS 1000
 #ifdef LEFT_HAND
 BLEService theService("26548447-3cd0-4460-b683-43b332274c2b");
@@ -186,6 +190,15 @@ long getVoltageToForce(int pinNum)
 }
 
 //
+// Reads the voltage to force to send over BLE (very slow)
+// returns: A JSON String
+//
+String getMonitoringDataString()
+{
+    return "{\"Thumb\":" + String(getVoltageToForce(THUMB)) + ",\"Palm\":" + String(getVoltageToForce(PALM)) + "}";
+}
+
+//
 // Initializes the starting session time using RTC and stored in rtc_set_ms
 //
 void initSessionTime()
@@ -275,7 +288,7 @@ String getDataString()
 }
 
 /* -------------------------------------------------------------------------------------- */
-/* ------------------------------------ DATA STORAGE ------------------------------------ */
+/* ----------------------------------s-- DATA STORAGE ------------------------------------ */
 /* -------------------------------------------------------------------------------------- */
 
 //
@@ -340,8 +353,25 @@ void writeDataToFile()
 // returns: string with status and battery in the format: '{ "state": <state>, "battery": <battery> }'
 String getStatusBatteryJSONString()
 {
+    String statusString = "";
+    if(currMode == RECORDING_MODE)
+    {
+        statusString = "Recording";
+    }
+    else if (currMode == STANDBY_MODE)
+    {
+        statusString = "Standby";
+    }
+    else if(currMode == RTC_ERROR)
+    {
+        statusString = "RTC Error";
+    }
+    else if(currMode == SD_ERROR)
+    {
+        statusString = "SD Error";
+    }
     // TODO: Need to add battery reading
-    return "{\"state\":" + String(currMode) + "}";
+    return "{\"state\":\"" + statusString + "\", \"battery\":100}";
 }
 
 //
@@ -419,6 +449,7 @@ void setup()
     BLE.setAdvertisedService(theService);
     theService.addCharacteristic(monitorCharacteristic);
     theService.addCharacteristic(infoCharacteristic);
+    theService.addCharacteristic(rtcCharacteristic);
     BLE.addService(theService);
     // start advertising
     BLE.advertise();
@@ -486,33 +517,37 @@ void loop()
     // If there is a connected central device
     if (central)
     {
-        // Do this only every second
-        if (last_ble_time - millis() >= BLE_TIME_INTERVAL_MS)
+        if (central.connected())
         {
-            // Check if RTC Was written
-            if (rtcCharacteristic.written())
+            // Do this only every second
+            if (last_ble_time - millis() >= BLE_TIME_INTERVAL_MS)
             {
-                char rtcString[128];
-                strncpy(rtcString, (char *)rtcCharacteristic.value(), rtcCharacteristic.valueLength());
+                // Check if RTC Was written
+                if (rtcCharacteristic.written())
+                {
+                    Serial.println("RTC Was written!");
+                    char rtcString[128];
+                    strncpy(rtcString, (char *)rtcCharacteristic.value(), rtcCharacteristic.valueLength());
+                    if (currMode == RECORDING_MODE)
+                    {
+                        // rtcCharacteristic.writeValue("Can't reset RTC while recording");
+                        Serial.println("Can't reset RTC while recording");
+                    }
+                    else
+                    {
+                        rtc.adjust(DateTime(String(rtcString).toInt()));
+                    }
+                }
+                // Send the current status and battery
+                infoCharacteristic.writeValue(getStatusBatteryJSONString().c_str());
+
                 if (currMode == RECORDING_MODE)
                 {
-                    rtcCharacteristic.writeValue("Can't reset RTC while recording");
+                    monitorCharacteristic.writeValue(getMonitoringDataString().c_str());
                 }
-                else
-                {
-                    // TODO: Reset RTC
-                }
-            }
-            // Send the current status and battery
-            infoCharacteristic.writeValue(getStatusBatteryJSONString().c_str());
 
-            if (currMode == RECORDING_MODE)
-            {
-                // TODO: Send monitoring data
-                // TODO: monitorCharacteristic(getMonitoringDataString().c_str());
+                last_ble_time = millis();
             }
-
-            last_ble_time = millis();
         }
     }
 

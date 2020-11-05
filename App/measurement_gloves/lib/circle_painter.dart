@@ -3,7 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'leftHand.dart';
 import 'rightHand.dart';
-import 'LeftHandTest.dart';
+// import 'LeftHandTest.dart';
 
 //Global Variable
 //double radius = 0;

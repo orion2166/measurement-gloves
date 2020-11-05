@@ -535,7 +535,8 @@ void loop()
                     }
                     else
                     {
-                        rtc.adjust(DateTime(String(rtcString).toInt()));
+                        rtc.adjust(DateTime(rtcString)); // in ISO 8061 format
+                        Serial.println("RTC Time Reset to: " + String(rtc.now().timestamp(DateTime::TIMESTAMP_FULL)));
                     }
                 }
                 // Send the current status and battery

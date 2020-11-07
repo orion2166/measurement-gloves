@@ -16,20 +16,20 @@ int curr_time[7];         // [0]: year, [1]: month, [2]: day, [3]: hour, [4]: mi
 #define PALM A1
 
 /* --------- BATTERY CONSTANTS --------- */
-#define BATTERY A4
+#define BATTERY A7
 #define RGB_RED A2
 #define RGB_GREEN A3
 #define RGB_BLUE A5
 
 /* --------- STATUS LED CONSTANTS --------- */
-#define STATUS_LED_WHITE D4
+#define STATUS_LED_RED D4
 #define STATUS_LED_GREEN D2
 
 /* --------- BUTTON CONSTANTS --------- */
 #ifdef LEFT_HAND
 #define BUTTON D9
 #else
-#define BUTTON D5
+#define BUTTON D3
 #endif
 
 /* --------- STATE CONSTANTS --------- */
@@ -96,23 +96,23 @@ void changeStatusLights()
     /* --------------- Set Standby Mode --------------- */
     case STANDBY_MODE:
         // Set Status Lights
-        digitalWrite(STATUS_LED_WHITE, HIGH);
-        digitalWrite(STATUS_LED_GREEN, LOW);
+        digitalWrite(STATUS_LED_RED, LOW);
+        digitalWrite(STATUS_LED_GREEN, HIGH);
         break;
     /* --------------- Set Recording Mode --------------- */
     case RECORDING_MODE:
         // Set Status Lights
-        digitalWrite(STATUS_LED_WHITE, LOW);
-        digitalWrite(STATUS_LED_GREEN, HIGH);
+        digitalWrite(STATUS_LED_RED, HIGH);
+        digitalWrite(STATUS_LED_GREEN, LOW);
         break;
     /* --------------- Generic RTC Error --------------- */
     case RTC_ERROR:
-        digitalWrite(STATUS_LED_WHITE, HIGH);
+        digitalWrite(STATUS_LED_RED, HIGH);
         digitalWrite(STATUS_LED_GREEN, HIGH);
         break;
     /* --------------- Generic SD Error --------------- */
     case SD_ERROR:
-        digitalWrite(STATUS_LED_WHITE, LOW);
+        digitalWrite(STATUS_LED_RED, LOW);
         digitalWrite(STATUS_LED_GREEN, LOW);
         break;
     }
@@ -151,10 +151,10 @@ void buttonIntermission()
 {
     for (int i = 0; i < 3; i++)
     {
-        digitalWrite(STATUS_LED_WHITE, HIGH);
+        digitalWrite(STATUS_LED_RED, HIGH);
         digitalWrite(STATUS_LED_GREEN, LOW);
         delay(500);
-        digitalWrite(STATUS_LED_WHITE, LOW);
+        digitalWrite(STATUS_LED_RED, LOW);
         digitalWrite(STATUS_LED_GREEN, HIGH);
         delay(500);
     }
@@ -470,7 +470,6 @@ void setup()
 void loop()
 {
     unsigned long loopStartTime = millis();
-
     /* --------- Change State on Button Press --------- */
     if (digitalRead(BUTTON) == HIGH && currMode != RTC_ERROR && currMode != SD_ERROR)
     {

@@ -140,6 +140,7 @@ void changeState(int newMode)
     {
         Serial.println(numReadings);
         dataFile.close();
+        updateCurrentTime();
     }
 }
 
@@ -271,6 +272,12 @@ void updateCurrentTime()
     getTimeFromMillis(curr_ms);
 }
 
+void updateCurrentMs()
+{
+    unsigned long curr_ms = rtc_set_ms + (millis() - initial_ms); //millis() - initial_ms = time passed after setting initial time
+    getTimeFromMillis(curr_ms);
+}
+
 //
 // Reads RTC, and force values and generates a data string to write to CSV file
 // returns: String in format: "<Time in ISO>, <THUMB force in g>, <PALM force in g>, <HAND (Left or Right)>"
@@ -354,7 +361,7 @@ void writeDataToFile()
 String getStatusBatteryJSONString()
 {
     String statusString = "";
-    if(currMode == RECORDING_MODE)
+    if (currMode == RECORDING_MODE)
     {
         statusString = "Recording";
     }
@@ -362,11 +369,11 @@ String getStatusBatteryJSONString()
     {
         statusString = "Standby";
     }
-    else if(currMode == RTC_ERROR)
+    else if (currMode == RTC_ERROR)
     {
         statusString = "RTC Error";
     }
-    else if(currMode == SD_ERROR)
+    else if (currMode == SD_ERROR)
     {
         statusString = "SD Error";
     }
@@ -418,9 +425,10 @@ void setBatteryIndicator()
 void setup()
 {
     Serial.begin(9600);
-    #ifndef ESP8266
-    while (!Serial); // wait for serial port to connect. Needed for native USB
-    #endif
+#ifndef ESP8266
+    while (!Serial)
+        ; // wait for serial port to connect. Needed for native USB
+#endif
 
     /* --------- Initialize Standby Mode --------- */
     changeState(STANDBY_MODE);
@@ -437,6 +445,9 @@ void setup()
         changeState(RTC_ERROR);
         Serial.println("RTC is NOT initialized, let's set the time!");
     }
+
+    // Reset RTC Time
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 
     /* --------- Initialize BLE --------- */
     // begin BLE
@@ -470,6 +481,7 @@ void setup()
 void loop()
 {
     unsigned long loopStartTime = millis();
+
     /* --------- Change State on Button Press --------- */
     if (digitalRead(BUTTON) == HIGH && currMode != RTC_ERROR && currMode != SD_ERROR)
     {
@@ -493,7 +505,7 @@ void loop()
     {
         ++numReadings;
         // get RTC time + force sensor values
-        updateCurrentTime();
+        updateCurrentMs();
         String vals = getDataString(); // Get Values
         Serial.println(vals);
 
@@ -536,6 +548,7 @@ void loop()
                     {
                         rtc.adjust(DateTime(rtcString)); // in ISO 8061 format
                         Serial.println("RTC Time Reset to: " + String(rtc.now().timestamp(DateTime::TIMESTAMP_FULL)));
+                        updateCurrentTime();
                     }
                 }
                 // Send the current status and battery

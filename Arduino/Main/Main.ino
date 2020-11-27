@@ -1,31 +1,72 @@
-#include <ArduinoBLE.h> // For BLE Stuff
+
+/**
+ * @file Main.ino
+ *
+ * @mainpage Measurement Gloves (Arduino)
+ *
+ * @section description Description
+ * This is a sketch loaded onto the Arduino for Measurement Gloves to control the board
+ * LEDs and buttons, read force sensor and RTC (Real Time Clock) values, and write them
+ * to the onboard SD card
+ *
+ * @section circuit Circuit
+ * - Red LED connected to pin D2.
+ * - Momentary push button connected to pin D3.
+ *
+ * @section libraries Libraries
+ * - ArduinoBLE.h
+ *   - Used for BLE communications with the mobile application
+ * - SPI.h
+ *   - Used for modules that use the SPI bus
+ * - SdFat.h
+ *   - Used for SD Card reading and writing
+ * - RTCLib.h
+ *   - Used to read RTC timing
+ */
+
+#include <ArduinoBLE.h>
 #include <SPI.h>
 #include "SdFat.h"
 #include "RTClib.h"
 
-//#define LEFT_HAND 1 // Comment for right hand
+/** Indicates left hand*/
+#define LEFT_HAND 1 // Comment for right hand
 
 /* --------- RTC CONSTANTS --------- */
+/** (Global) RTC Variable from RTClib.h*/
 RTC_PCF8523 rtc;
-unsigned long rtc_set_ms; // the time (hr, min, sec) when rtc was set (in milliseconds)
-unsigned long initial_ms; // ms passed until rtc was set
-int curr_time[7];         // [0]: year, [1]: month, [2]: day, [3]: hour, [4]: min, [5]: sec, [6]: millisec
+/** (Global) The time (hr, min, sec) when rtc was set (in milliseconds)*/
+unsigned long rtc_set_ms;
+/** (Global) milliseconds passed until rtc was set*/
+unsigned long initial_ms;
+/** (Global) Stores the current time as array with the following format –
+ * [0]: year, [1]: month, [2]: day, [3]: hour, [4]: min, [5]: sec, [6]: millisec*/
+int curr_time[7];
 
 /* --------- FORCE SENSOR CONSTANTS --------- */
+/** Thumb force sensor analog pin*/
 #define THUMB A0
+/** Palm force sensor analog pin*/
 #define PALM A1
 
 /* --------- BATTERY CONSTANTS --------- */
+/** Battery analog pin (to read value)*/
 #define BATTERY A7
+/** RGB Red Analog pin*/
 #define RGB_RED A2
+/** RGB Green Analog pin*/
 #define RGB_GREEN A3
+/** RGB Blue Analog pin*/
 #define RGB_BLUE A5
 
 /* --------- STATUS LED CONSTANTS --------- */
+/** Red LED Digital Pin*/
 #define STATUS_LED_RED D4
+/** Green LED Digital Pin*/
 #define STATUS_LED_GREEN D2
 
 /* --------- BUTTON CONSTANTS --------- */
+/** Button Digital Pin*/
 #ifdef LEFT_HAND
 #define BUTTON D9
 #else
@@ -33,21 +74,25 @@ int curr_time[7];         // [0]: year, [1]: month, [2]: day, [3]: hour, [4]: mi
 #endif
 
 /* --------- STATE CONSTANTS --------- */
-#define STANDBY_MODE 0   // White On | Green Off
-#define RECORDING_MODE 1 // White Off | Green On
+#define STANDBY_MODE 0
+#define RECORDING_MODE 1
 #define RTC_ERROR 2
 #define SD_ERROR 3
 
 /* --------- SD CONSTANTS --------- */
+/** Chip Select Pin for the SD Card*/
 #ifdef LEFT_HAND
 const uint8_t chipSelect = 10;
 #else
 const uint8_t chipSelect = 9;
 #endif
-SdFat sd;        // file system object
-SdFile dataFile; // log file
+/** (Global) SD Card object*/
+SdFat sd;
+/** (Global) data file stored on SD Card*/
+SdFile dataFile;
 
 /* --------- BLE CONSTANTS --------- */
+/** Glove to name to advertise on BLE*/
 #ifdef LEFT_HAND
 #define GLOVE_BLE_NAME "Glove 1 (Left)"
 #else
@@ -55,16 +100,22 @@ SdFile dataFile; // log file
 #endif
 #define BLE_TIME_INTERVAL_MS 1000
 #ifdef LEFT_HAND
+/** BLE Service UUID*/
 BLEService theService("26548447-3cd0-4460-b683-43b332274c2b");
 #else
 BLEService theService("139d09c1-b45a-4c76-b4bd-778dc82a5d67");
 #endif
+/** BLE Monitoring Characteristic UUID*/
 BLECharacteristic monitorCharacteristic("43b513cf-08aa-4bd9-bc58-3f626a4248d8", BLERead | BLENotify, 512);
+/** BLE Information (Status and Battery) Characteristic UUID*/
 BLECharacteristic infoCharacteristic("b106d600-3ee1-4a10-8dd7-260074535086", BLERead | BLENotify, 512);
+/** BLE RTC Characteristic UUID*/
 BLECharacteristic rtcCharacteristic("81600d69-4d48-4d19-b299-7ef5e3b21f69", BLERead | BLEWrite, 512);
 
 /* --------- General CONSTANTS --------- */
+/** Time to delay everytime loop occurs in milliseconds*/
 #define DELAY_PER_LOOP 200
+/** Stores "Left" or "Right"*/
 #ifdef LEFT_HAND
 #define GLOVE_HAND "Left"
 #else
@@ -72,11 +123,16 @@ BLECharacteristic rtcCharacteristic("81600d69-4d48-4d19-b299-7ef5e3b21f69", BLER
 #endif
 
 /* -------------- GLOBALS -------------- */
-int currMode;                   // Global State Variable
-String fileName = String();     // Current file we will be writing to
-unsigned int sessionNumber = 1; // Keep track of session number
-unsigned int numReadings;       // Keep track of number of readings in each recording session
-unsigned long last_ble_time;    // The last time BLE was accessed
+/** (Global) Current Status Mode – one of STANDBY_MODE, RECORDING_MODE, SD_ERROR, or RTC_ERROR*/
+int currMode;
+/** (Global) Stores the current filename being written to*/
+String fileName = String();
+/** (Global) Stores the current session number*/
+unsigned int sessionNumber = 1;
+/** (Global) Keeps track of the number of readings in one recording session*/
+unsigned int numReadings;
+/** (Global) Keeps track of the last time BLE was accessed in loop()*/
+unsigned long last_ble_time;
 
 /* ------------------------------------------------------------------------------------------------------------------------ */
 /* --------------------------------------------------- HELPER FUNCTIONS --------------------------------------------------- */
@@ -86,9 +142,14 @@ unsigned long last_ble_time;    // The last time BLE was accessed
 /* ------------------------------------ STATE MANAGEMENT ------------------------------------ */
 /* ------------------------------------------------------------------------------------------ */
 
-//
-// Changes the status lights based on the current status mode
-//
+/**
+ * @brief Changes the status lights based on the current status mode.
+ * Uses the global variable currMode and sets the status LEDs accordingly:
+ * STANDBY_MODE : GREEN
+ * RECORDING_MODE : RED
+ * RTC_ERROR: GREEN and RED
+ * SD_ERROR: Both off
+ */
 void changeStatusLights()
 {
     switch (currMode)
@@ -118,10 +179,12 @@ void changeStatusLights()
     }
 }
 
-//
-// Changes the status lights based on the current status mode
-// newMode: new status mode code
-//
+/**
+ * @brief Changes the status lights based on the current status mode.
+ * This is done by first changing the global currMode variable, changing the status lights
+ * and then doing mode specific tasks
+ * @param newMode new status mode code
+ */
 void changeState(int newMode)
 {
     Serial.print("Mode = ");
@@ -144,10 +207,10 @@ void changeState(int newMode)
     }
 }
 
-//
-// Gives a 3 second delay between button press and state change
-// Blinks status LEDs to indicate intermission
-//
+/**
+ * @brief Gives a 3 second delay between button press and state change while also blinking the status LEDs
+ *
+ */
 void buttonIntermission()
 {
     for (int i = 0; i < 3; i++)
@@ -165,11 +228,13 @@ void buttonIntermission()
 /* ------------------------------------ DATA COLLECTION ------------------------------------ */
 /* ----------------------------------------------------------------------------------------- */
 
-//
-// Reads voltage from given analog pin and converts voltage to force (in grams) using model
-// pinNum: analog pin to read voltage from
-// returns: force in grams
-//
+/**
+ * @brief Given a pin number, reads the voltage on it using analogRead
+ * and then converts it to force in grams using voltage to force model.
+ *
+ * @param pinNum Analog pin to read voltage from
+ * @return long Force value in grams
+ */
 long getVoltageToForce(int pinNum)
 {
     int fsr; // analog reading from fsr resistor divider
@@ -190,10 +255,13 @@ long getVoltageToForce(int pinNum)
     return forceVal;
 }
 
-//
-// Reads the voltage to force to send over BLE (very slow)
-// returns: A JSON String
-//
+/**
+ * @brief Constructs the Monitoring Data String by reading the force on the THUMB and PALM using the
+ * getVoltageToForce function, and stores it in a JSON string of the following format:\n
+ * { THUMB: <THUMB force value in g>, PALM: <PALM force value in g> }
+ *
+ * @return JSON string with THUMB and PALM force value
+ */
 String getMonitoringDataString()
 {
     return "{\"Thumb\":" + String(getVoltageToForce(THUMB)) + ",\"Palm\":" + String(getVoltageToForce(PALM)) + "}";
@@ -202,6 +270,12 @@ String getMonitoringDataString()
 //
 // Initializes the starting session time using RTC and stored in rtc_set_ms
 //
+/**
+ * @brief Initializes the session time by doing the following:\n
+ * Read the RTC Time. Set the year, month and day. Then, use millis() to see how many milliseconds() have passed since
+ * turn on and store it in initial_ms, and save the rtc_set_ms global variable to be the current time in milliseconds
+ *
+ */
 void initSessionTime()
 {
     // check RTC for error
@@ -225,9 +299,12 @@ void initSessionTime()
     initial_ms = millis();
 }
 
-//
-// Convert Time of Day in MS Count to Military Time
-//
+/**
+ * @brief Given a time in milliseconds, convert it into hours, minutes, seconds and milliseconds
+ * and store each of them in the corresponding indices of the global array curr_ms
+ *
+ * @param ms Current time as a total of milliseconds
+ */
 void getTimeFromMillis(unsigned long ms)
 {
     // get total ms, sec, min, & hours from ms
@@ -249,9 +326,11 @@ void getTimeFromMillis(unsigned long ms)
     curr_time[6] = currMs;
 }
 
-//
-// Gets the current time and updates the time stored in curr_time
-//
+/**
+ * @brief Gets the current time from the RTC Module and updates the global
+ * curr_time variable accordingly
+ *
+ */
 void updateCurrentTime()
 {
     // check RTC for error
@@ -272,16 +351,24 @@ void updateCurrentTime()
     getTimeFromMillis(curr_ms);
 }
 
+/**
+ * @brief Uses the global variables rtc_set_ms and initial_ms with millis() to find the current time in milliseconds.
+ * Then, uses getTimeFromMillis to update the global variable curr_time accordingly
+ *
+ */
 void updateCurrentMs()
 {
     unsigned long curr_ms = rtc_set_ms + (millis() - initial_ms); //millis() - initial_ms = time passed after setting initial time
     getTimeFromMillis(curr_ms);
 }
 
-//
-// Reads RTC, and force values and generates a data string to write to CSV file
-// returns: String in format: "<Time in ISO>, <THUMB force in g>, <PALM force in g>, <HAND (Left or Right)>"
-//
+
+/**
+ * @brief Constructs and returns a data string with the time, THUMB force in grams, PALM force in grams, and the glove hand in the following format:\n
+ * <YYYY:MM:DD:HH:MM:SS:MS>, <THUMB force in g>, <PALM force in g>, <"LEFT" or "RIGHT">
+ *
+ * @return String The Data String
+ */
 String getDataString()
 {
     String toReturn = String(curr_time[0]) + ":" + String(curr_time[1]) + ":" + String(curr_time[2]) + ":" + String(curr_time[3]) + ":" // hour
@@ -295,12 +382,15 @@ String getDataString()
 }
 
 /* -------------------------------------------------------------------------------------- */
-/* ----------------------------------s-- DATA STORAGE ------------------------------------ */
+/* ------------------------------------ DATA STORAGE ------------------------------------ */
 /* -------------------------------------------------------------------------------------- */
 
-//
-// Creates a new session file based on RTC time and session number
-//
+/**
+ * @brief Generates a session file for data in the following format:\n
+ * YYYY_MM_DD_#<sessionNumber>.csv\n
+ * and then writes the header to the session file
+ *
+ */
 void generateSessionFile()
 {
     // Construct the filename
@@ -330,9 +420,10 @@ void generateSessionFile()
     writeHeaderToFile();
 }
 
-//
-// Writes column headers to the file
-//
+/**
+ * @brief Writes headers to the file for the columns (RTC, Thumb, Palm, Hand)
+ *
+ */
 void writeHeaderToFile()
 {
     // write data headers
@@ -340,9 +431,10 @@ void writeHeaderToFile()
     Serial.println("Writing headers");
 }
 
-//
-// Writes a data string to the CSV file
-//
+/**
+ * @brief Writes a data string to the file. Gets the data string using the getDataString() function
+ *
+ */
 void writeDataToFile()
 {
     // Write data to file
@@ -355,9 +447,11 @@ void writeDataToFile()
 /* ------------------------------------ BATTERY STATUS ------------------------------------ */
 /* ---------------------------------------------------------------------------------------- */
 
-//
-// Generate a status and battery JSON string to be sent over BLE
-// returns: string with status and battery in the format: '{ "state": <state>, "battery": <battery> }'
+/**
+ * @brief Generate a status and battery JSON string to be sent over BLE
+ *
+ * @return String String with status and battery in the format: '{ "state": <state>, "battery": <battery> }'
+ */
 String getStatusBatteryJSONString()
 {
     String statusString = "";
@@ -381,20 +475,22 @@ String getStatusBatteryJSONString()
     return "{\"state\":\"" + statusString + "\", \"battery\":100}";
 }
 
-//
-// Set RGB LED with given red and green values
-// red_light_value: value to write to R value of RGB LED
-// green_light_value: value to write to G value of RGB LED
-//
+/**
+ * @brief Sets RGB LED with given red and green values
+ *
+ * @param red_light_value value to write to R value of RGB LED
+ * @param green_light_value value to write to G value of RGB LED
+ */
 void RGB_color(int red_light_value, int green_light_value)
 {
     analogWrite(RGB_RED, red_light_value);
     analogWrite(RGB_GREEN, green_light_value);
 }
 
-//
-// Read the battery value and set battery LED accordingly
-//
+/**
+ * @brief Reads the battery value and set battery LED accordingly
+ *
+ */
 void setBatteryIndicator()
 {
 
@@ -422,6 +518,17 @@ void setBatteryIndicator()
 /* ------------------------------------------------------------------------------------------------------------- */
 /* --------------------------------------------------- SETUP --------------------------------------------------- */
 /* ------------------------------------------------------------------------------------------------------------- */
+/**
+ * @brief Arduino setup() function called once on startup
+ *
+ *
+ * The following steps are performed:\n
+ * - State is changed to STANDBY_MODE
+ * - RTC (Real Time Clock) is initialized. If any errors occured, mode is set to RTC_ERROR
+ * - Arduino is advertised over BLE, and services and characteristics are added
+ * - SD Card is initialized. If SD Card is not present, or there is any error in initialization, mode is set to SD_ERROR
+ *
+ */
 void setup()
 {
     Serial.begin(9600);
@@ -478,6 +585,21 @@ void setup()
 /* ----------------------------------------------------------------------------------------------------------------- */
 /* --------------------------------------------------- MAIN LOOP --------------------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------------------- */
+/**
+ * @brief The main infinite Arduino loop which is constantly being run
+ *
+ *
+ * The following steps are performed:
+ * - Read button state, and change state when button is pressed
+ * - If current mode is RECORDING_MODE, write data to the file onto the SD card
+ * - Update the battery indicator LED
+ * - Using the global variable last_ble_time, do the following BLE related tasks whenever BLE_TIME_INTERVAL_MS milliseconds pass:
+ *  - Check if central device is connected
+ *  - If new value of RTC was written, update the RTC time (as long as not currently recording)
+ *  - Send current status and battery to central device
+ *  - Send monitoring data to central device if currently recording
+ * - Using the loopStartTime stored in the beginning of every loop, wait until DELAY_PER_LOOP milliseconds have passed
+ */
 void loop()
 {
     unsigned long loopStartTime = millis();
